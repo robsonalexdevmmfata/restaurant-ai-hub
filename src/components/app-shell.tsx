@@ -54,7 +54,7 @@ export function AppShell({
                 <item.icon className="size-4" />
                 {item.label}
                 {"badge" in item && item.badge ? (
-                  <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                  <span className="ml-auto rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-semibold text-white">
                     {item.badge}
                   </span>
                 ) : null}
@@ -105,7 +105,7 @@ export function AppShell({
             </div>
             <div className="flex items-center gap-2">
               <span className="hidden items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[12px] font-medium ring-1 ring-black/5 sm:inline-flex">
-                <span className="size-1.5 rounded-full bg-accent" /> IA ativa
+                <span className="size-1.5 rounded-full bg-brand" /> IA ativa
               </span>
               {action}
             </div>
@@ -120,7 +120,7 @@ export function AppShell({
                 key={item.to}
                 to={item.to}
                 className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
-                  active ? "text-accent" : "text-stone-500"
+                  active ? "text-brand" : "text-stone-500"
                 }`}
               >
                 <item.icon className="size-4" />
