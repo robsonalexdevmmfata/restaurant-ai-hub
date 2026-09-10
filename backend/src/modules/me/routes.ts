@@ -7,9 +7,15 @@ import {
   updateConversationModeSchema,
 } from "../conversations/schemas.js";
 import * as conversationService from "../conversations/service.js";
+import { createMenuSchema, updateMenuSchema } from "../menus/schemas.js";
+import * as menuService from "../menus/service.js";
 import { listOrdersQuerySchema, updateOrderStatusSchema } from "../orders/schemas.js";
 import * as orderService from "../orders/service.js";
-import { createProductSchema, updateProductSchema } from "../products/schemas.js";
+import {
+  createProductSchema,
+  listProductsQuerySchema,
+  updateProductSchema,
+} from "../products/schemas.js";
 import * as productService from "../products/service.js";
 import { updateRestaurantSchema } from "../restaurants/schemas.js";
 import * as restaurantService from "../restaurants/service.js";
@@ -48,9 +54,72 @@ export async function meRoutes(app: FastifyInstance) {
     return orderService.getDashboardStats(restaurantId);
   });
 
-  app.get("/me/products", async (request) => {
+  /* ---------- Cardápios (menus) ---------- */
+
+  app.get("/me/menus", async (request) => {
     const { restaurantId } = getAuthUser(request);
-    return productService.listProductsByRestaurant(restaurantId);
+    return menuService.listMenus(restaurantId);
+  });
+
+  app.post("/me/menus", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const parsed = createMenuSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
+    }
+
+    try {
+      const menu = await menuService.createMenu(restaurantId, parsed.data);
+      return reply.status(201).send(menu);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return reply.status(409).send({ error: "Já existe um cardápio com esse identificador" });
+      }
+      throw error;
+    }
+  });
+
+  app.patch("/me/menus/:menuId", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const menuId = parseId((request.params as { menuId: string }).menuId);
+    if (!menuId) return reply.status(400).send({ error: "Invalid menu id" });
+
+    const parsed = updateMenuSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
+    }
+
+    try {
+      const menu = await menuService.updateMenu(menuId, restaurantId, parsed.data);
+      if (!menu) return reply.status(404).send({ error: "Menu not found" });
+      return menu;
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return reply.status(409).send({ error: "Já existe um cardápio com esse identificador" });
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/me/menus/:menuId", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const menuId = parseId((request.params as { menuId: string }).menuId);
+    if (!menuId) return reply.status(400).send({ error: "Invalid menu id" });
+
+    const deleted = await menuService.deleteMenu(menuId, restaurantId);
+    if (!deleted) return reply.status(404).send({ error: "Menu not found" });
+    return reply.status(204).send();
+  });
+
+  /* ---------- Produtos ---------- */
+
+  app.get("/me/products", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const parsed = listProductsQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid query", details: parsed.error.flatten() });
+    }
+    return productService.listProductsByRestaurant(restaurantId, parsed.data.menuId);
   });
 
   app.post("/me/products", async (request, reply) => {
@@ -59,7 +128,17 @@ export async function meRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
     }
-    const product = await productService.createProduct(restaurantId, parsed.data);
+
+    let menuId = parsed.data.menuId ?? null;
+    if (menuId) {
+      const menu = await menuService.getMenu(menuId, restaurantId);
+      if (!menu) return reply.status(404).send({ error: "Menu not found" });
+    } else {
+      const active = await menuService.getActiveMenu(restaurantId);
+      menuId = active?.id ?? null;
+    }
+
+    const product = await productService.createProduct(restaurantId, parsed.data, menuId);
     return reply.status(201).send(product);
   });
 

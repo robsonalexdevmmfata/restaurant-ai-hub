@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { products, restaurants } from "../../db/schema.js";
+import { restaurants } from "../../db/schema.js";
+import * as menuService from "../menus/service.js";
+import * as productService from "../products/service.js";
 import type { UpdateRestaurantInput } from "./schemas.js";
 
 export async function getRestaurantById(id: number) {
@@ -18,16 +20,40 @@ export async function getRestaurantByInstance(instance: string) {
   return row ?? null;
 }
 
-export async function getTenantContext(instance: string) {
+/**
+ * Contexto usado pelo agente de IA (n8n / Evolution API).
+ * Quando `menuSlug` é informado, usa aquele cardápio; senão usa o cardápio ativo.
+ */
+export async function getTenantContext(instance: string, menuSlug?: string) {
   const restaurant = await getRestaurantByInstance(instance);
   if (!restaurant) return null;
 
-  const menu = await db
-    .select()
-    .from(products)
-    .where(eq(products.restaurantId, restaurant.id));
+  const menu = menuSlug
+    ? await menuService.getMenuBySlug(restaurant.id, menuSlug)
+    : await menuService.getActiveMenu(restaurant.id);
 
-  return { restaurant, products: menu };
+  if (menuSlug && !menu) return { restaurant, menu: null, products: [] };
+
+  const menuProducts = menu
+    ? await productService.listProductsByMenu(menu.id)
+    : await productService.listProductsByRestaurant(restaurant.id);
+
+  const available = menuProducts.filter((p) => p.status === "DISPONIVEL");
+
+  return {
+    restaurant,
+    menu,
+    aiInstructions: menu?.aiInstructions ?? restaurant.aiInstructions ?? null,
+    products: menuProducts,
+    menuText: available
+      .map(
+        (p) =>
+          `- ${p.name}${p.category ? ` (${p.category})` : ""}: R$ ${Number(p.price).toFixed(2)}${
+            p.description ? ` — ${p.description}` : ""
+          }`,
+      )
+      .join("\n"),
+  };
 }
 
 export async function updateRestaurant(id: number, input: UpdateRestaurantInput) {
