@@ -10,11 +10,24 @@ import * as restaurantService from "../restaurants/service.js";
 export async function internalRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireApiSecret);
 
-  /** Substitui o nó PostgreSQL do n8n: tenant + cardápio pela instância Evolution. */
+  /**
+   * Substitui o nó PostgreSQL do n8n: tenant + cardápio pela instância Evolution.
+   * Use ?menu=slug para forçar um cardápio específico (fluxos diferentes por cardápio).
+   */
   app.get("/internal/tenant/:instance", async (request, reply) => {
     const { instance } = request.params as { instance: string };
-    const tenant = await restaurantService.getTenantContext(instance);
+    const { menu } = request.query as { menu?: string };
+    const tenant = await restaurantService.getTenantContext(instance, menu);
     if (!tenant) return reply.status(404).send({ error: "Restaurant not found" });
+    return tenant;
+  });
+
+  /** Cardápio específico por slug — rota que o agente de IA consome por fluxo. */
+  app.get("/internal/menu/:instance/:slug", async (request, reply) => {
+    const { instance, slug } = request.params as { instance: string; slug: string };
+    const tenant = await restaurantService.getTenantContext(instance, slug);
+    if (!tenant) return reply.status(404).send({ error: "Restaurant not found" });
+    if (!tenant.menu) return reply.status(404).send({ error: "Menu not found" });
     return tenant;
   });
 
