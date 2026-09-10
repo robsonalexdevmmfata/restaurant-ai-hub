@@ -7,6 +7,8 @@ import {
   integer,
   timestamp,
   jsonb,
+  boolean,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const restaurants = pgTable("restaurants", {
@@ -26,12 +28,32 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 50 }).notNull().default("owner"),
 });
 
+export const menus = pgTable(
+  "menus",
+  {
+    id: serial("id").primaryKey(),
+    restaurantId: integer("restaurant_id")
+      .notNull()
+      .references(() => restaurants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull(),
+    aiInstructions: text("ai_instructions"),
+    isActive: boolean("is_active").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: false }).notNull().defaultNow(),
+  },
+  (table) => ({
+    restaurantSlug: unique("menus_restaurant_slug_key").on(table.restaurantId, table.slug),
+  }),
+);
+
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   restaurantId: integer("restaurant_id")
     .notNull()
     .references(() => restaurants.id, { onDelete: "cascade" }),
+  menuId: integer("menu_id").references(() => menus.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   category: varchar("category", { length: 100 }),
   status: varchar("status", { length: 50 }).notNull().default("DISPONIVEL"),
