@@ -3,9 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { db } from "../../db/index.js";
-import { menus, products, restaurants } from "../../db/schema.js";
+import { menus, orders, products, restaurants } from "../../db/schema.js";
 import * as tableService from "../tables/service.js";
-import { orders } from "../../db/schema.js";
 
 const orderItemSchema = z.object({
   productId: z.number().int().positive(),
