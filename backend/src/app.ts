@@ -3,9 +3,13 @@ import jwt from "@fastify/jwt";
 import Fastify from "fastify";
 
 import { env } from "./config/env.js";
+import { adminRoutes } from "./modules/admin/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { internalRoutes } from "./modules/internal/routes.js";
 import { meRoutes } from "./modules/me/routes.js";
+import { publicRoutes } from "./modules/public/routes.js";
+import { staffRoutes } from "./modules/staff/routes.js";
+import { tableRoutes } from "./modules/tables/routes.js";
 import "./types/jwt.js";
 
 export async function buildApp() {
@@ -30,7 +34,11 @@ export async function buildApp() {
 
   await app.register(authRoutes, { prefix: "/api" });
   await app.register(meRoutes, { prefix: "/api" });
+  await app.register(tableRoutes, { prefix: "/api" });
+  await app.register(staffRoutes, { prefix: "/api" });
+  await app.register(adminRoutes, { prefix: "/api" });
   await app.register(internalRoutes, { prefix: "/api" });
+  await app.register(publicRoutes, { prefix: "/api" });
 
   return app;
 }
