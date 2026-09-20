@@ -34,7 +34,11 @@ export async function buildApp() {
 
   await app.register(authRoutes, { prefix: "/api" });
   await app.register(meRoutes, { prefix: "/api" });
+  await app.register(tableRoutes, { prefix: "/api" });
+  await app.register(staffRoutes, { prefix: "/api" });
+  await app.register(adminRoutes, { prefix: "/api" });
   await app.register(internalRoutes, { prefix: "/api" });
+  await app.register(publicRoutes, { prefix: "/api" });
 
   return app;
 }
