@@ -3,9 +3,13 @@ import jwt from "@fastify/jwt";
 import Fastify from "fastify";
 
 import { env } from "./config/env.js";
+import { adminRoutes } from "./modules/admin/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { internalRoutes } from "./modules/internal/routes.js";
 import { meRoutes } from "./modules/me/routes.js";
+import { publicRoutes } from "./modules/public/routes.js";
+import { staffRoutes } from "./modules/staff/routes.js";
+import { tableRoutes } from "./modules/tables/routes.js";
 import "./types/jwt.js";
 
 export async function buildApp() {
