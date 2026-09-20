@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { restaurants, users } from "../../db/schema.js";
+import { menus, restaurants, users } from "../../db/schema.js";
 import type { RegisterInput } from "./schemas.js";
 
 export async function findUserByEmail(email: string) {
