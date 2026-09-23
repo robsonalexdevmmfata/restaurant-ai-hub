@@ -1,5 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutPanelLeft, MessageSquare, UtensilsCrossed, QrCode, LogOut, Store } from "lucide-react";
+import {
+  LayoutPanelLeft, MessageSquare, UtensilsCrossed, QrCode, LogOut, Store, Armchair, ChefHat, Wallet,
+  ShoppingBag, Bike, Users, ShieldCheck, ExternalLink,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import logo from "@/assets/logo.png";
@@ -10,7 +13,14 @@ const nav = [
   { to: "/dashboard", label: "Visão geral", icon: LayoutPanelLeft },
   { to: "/conversas", label: "Conversas", icon: MessageSquare, badge: "3" },
   { to: "/cardapio", label: "Cardápio", icon: UtensilsCrossed },
+  { to: "/mesas", label: "Mesas", icon: Armchair },
+  { to: "/pdv", label: "PDV", icon: ShoppingBag },
+  { to: "/cozinha", label: "Cozinha", icon: ChefHat },
+  { to: "/delivery", label: "Delivery", icon: Bike },
+  { to: "/caixa", label: "Caixa", icon: Wallet },
+  { to: "/usuarios", label: "Usuários", icon: Users },
   { to: "/conexao", label: "Conexão", icon: QrCode },
+  { to: "/admin", label: "Super admin", icon: ShieldCheck },
 ] as const;
 
 export function AppShell({
@@ -39,7 +49,7 @@ export function AppShell({
             <p className="mt-0.5 text-[10px] text-stone-500">Operations</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-0.5 px-3 py-4">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
           <span className="px-2 text-[10px] font-medium uppercase tracking-[0.15em] text-stone-600">Painel</span>
           {nav.map((item) => {
             const active = pathname === item.to;
@@ -68,6 +78,15 @@ export function AppShell({
             <Store className="size-4" />
             {tenant.restaurant}
           </div>
+          <Link
+            to="/r/$slug"
+            params={{ slug: "meu" }}
+            target="_blank"
+            className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium hover:bg-white/5"
+          >
+            <ExternalLink className="size-4" />
+            Cardápio público
+          </Link>
         </nav>
         <div className="flex items-center gap-2.5 border-t border-white/10 p-3">
           <img
@@ -112,14 +131,14 @@ export function AppShell({
           </div>
         </header>
         <div className="p-4 sm:p-6">{children}</div>
-        <nav className="sticky bottom-0 z-20 flex border-t border-black/5 bg-white lg:hidden">
+        <nav className="sticky bottom-0 z-20 flex overflow-x-auto border-t border-black/5 bg-white lg:hidden">
           {nav.map((item) => {
             const active = pathname === item.to;
             return (
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
+                className={`flex min-w-[68px] flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
                   active ? "text-brand" : "text-stone-500"
                 }`}
               >
