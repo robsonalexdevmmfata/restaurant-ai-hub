@@ -28,19 +28,26 @@ function Login() {
   const [email, setEmail] = useState("marco@pizzariavulcao.com.br");
   const [password, setPassword] = useState("123456");
   const [restaurant, setRestaurant] = useState("");
+  const [owner, setOwner] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (getTenant()) navigate({ to: "/dashboard", replace: true });
   }, [navigate]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    window.setTimeout(() => {
-      signIn(email, mode === "signup" ? restaurant : undefined);
+    setError("");
+    try {
+      if (mode === "login") await login(email, password);
+      else await register({ restaurantName: restaurant, ownerName: owner, email, password });
       navigate({ to: "/dashboard", replace: true });
-    }, 900);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível entrar");
+      setLoading(false);
+    }
   }
 
   return (
