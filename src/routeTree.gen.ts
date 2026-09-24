@@ -10,14 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as CardapioRouteImport } from './routes/cardapio'
 import { Route as ConexaoRouteImport } from './routes/conexao'
 import { Route as ConversasRouteImport } from './routes/conversas'
+import { Route as CozinhaRouteImport } from './routes/cozinha'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DeliveryRouteImport } from './routes/delivery'
+import { Route as MesasRouteImport } from './routes/mesas'
+import { Route as PdvRouteImport } from './routes/pdv'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as RSlugRouteImport } from './routes/r.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaixaRoute = CaixaRouteImport.update({
+  id: '/caixa',
+  path: '/caixa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CardapioRoute = CardapioRouteImport.update({
@@ -35,48 +53,150 @@ const ConversasRoute = ConversasRouteImport.update({
   path: '/conversas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CozinhaRoute = CozinhaRouteImport.update({
+  id: '/cozinha',
+  path: '/cozinha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeliveryRoute = DeliveryRouteImport.update({
+  id: '/delivery',
+  path: '/delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MesasRoute = MesasRouteImport.update({
+  id: '/mesas',
+  path: '/mesas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdvRoute = PdvRouteImport.update({
+  id: '/pdv',
+  path: '/pdv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RSlugRoute = RSlugRouteImport.update({
+  id: '/r/$slug',
+  path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRoute
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
+  '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
+  '/delivery': typeof DeliveryRoute
+  '/mesas': typeof MesasRoute
+  '/pdv': typeof PdvRoute
+  '/usuarios': typeof UsuariosRoute
+  '/r/$slug': typeof RSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRoute
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
+  '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
+  '/delivery': typeof DeliveryRoute
+  '/mesas': typeof MesasRoute
+  '/pdv': typeof PdvRoute
+  '/usuarios': typeof UsuariosRoute
+  '/r/$slug': typeof RSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRoute
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
+  '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
+  '/delivery': typeof DeliveryRoute
+  '/mesas': typeof MesasRoute
+  '/pdv': typeof PdvRoute
+  '/usuarios': typeof UsuariosRoute
+  '/r/$slug': typeof RSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cardapio' | '/conexao' | '/conversas' | '/dashboard'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/caixa'
+    | '/cardapio'
+    | '/conexao'
+    | '/conversas'
+    | '/cozinha'
+    | '/dashboard'
+    | '/delivery'
+    | '/mesas'
+    | '/pdv'
+    | '/usuarios'
+    | '/r/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cardapio' | '/conexao' | '/conversas' | '/dashboard'
-  id: '__root__' | '/' | '/cardapio' | '/conexao' | '/conversas' | '/dashboard'
+  to:
+    | '/'
+    | '/admin'
+    | '/caixa'
+    | '/cardapio'
+    | '/conexao'
+    | '/conversas'
+    | '/cozinha'
+    | '/dashboard'
+    | '/delivery'
+    | '/mesas'
+    | '/pdv'
+    | '/usuarios'
+    | '/r/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/caixa'
+    | '/cardapio'
+    | '/conexao'
+    | '/conversas'
+    | '/cozinha'
+    | '/dashboard'
+    | '/delivery'
+    | '/mesas'
+    | '/pdv'
+    | '/usuarios'
+    | '/r/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  CaixaRoute: typeof CaixaRoute
   CardapioRoute: typeof CardapioRoute
   ConexaoRoute: typeof ConexaoRoute
   ConversasRoute: typeof ConversasRoute
+  CozinhaRoute: typeof CozinhaRoute
   DashboardRoute: typeof DashboardRoute
+  DeliveryRoute: typeof DeliveryRoute
+  MesasRoute: typeof MesasRoute
+  PdvRoute: typeof PdvRoute
+  UsuariosRoute: typeof UsuariosRoute
+  RSlugRoute: typeof RSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -86,6 +206,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caixa': {
+      id: '/caixa'
+      path: '/caixa'
+      fullPath: '/caixa'
+      preLoaderRoute: typeof CaixaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cardapio': {
@@ -109,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConversasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cozinha': {
+      id: '/cozinha'
+      path: '/cozinha'
+      fullPath: '/cozinha'
+      preLoaderRoute: typeof CozinhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -116,15 +257,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/delivery': {
+      id: '/delivery'
+      path: '/delivery'
+      fullPath: '/delivery'
+      preLoaderRoute: typeof DeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mesas': {
+      id: '/mesas'
+      path: '/mesas'
+      fullPath: '/mesas'
+      preLoaderRoute: typeof MesasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdv': {
+      id: '/pdv'
+      path: '/pdv'
+      fullPath: '/pdv'
+      preLoaderRoute: typeof PdvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$slug': {
+      id: '/r/$slug'
+      path: '/r/$slug'
+      fullPath: '/r/$slug'
+      preLoaderRoute: typeof RSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  CaixaRoute: CaixaRoute,
   CardapioRoute: CardapioRoute,
   ConexaoRoute: ConexaoRoute,
   ConversasRoute: ConversasRoute,
+  CozinhaRoute: CozinhaRoute,
   DashboardRoute: DashboardRoute,
+  DeliveryRoute: DeliveryRoute,
+  MesasRoute: MesasRoute,
+  PdvRoute: PdvRoute,
+  UsuariosRoute: UsuariosRoute,
+  RSlugRoute: RSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
