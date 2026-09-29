@@ -18,10 +18,17 @@ import { Route as ConversasRouteImport } from './routes/conversas'
 import { Route as CozinhaRouteImport } from './routes/cozinha'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeliveryRouteImport } from './routes/delivery'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MesasRouteImport } from './routes/mesas'
+import { Route as MotoboyRouteImport } from './routes/motoboy'
 import { Route as PdvRouteImport } from './routes/pdv'
+import { Route as PersonalizacaoRouteImport } from './routes/personalizacao'
+import { Route as PromocoesRouteImport } from './routes/promocoes'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as CardapioSlugRouteImport } from './routes/cardapio.$slug'
 import { Route as RSlugRouteImport } from './routes/r.$slug'
+import { Route as PedidoSlugTokenRouteImport } from './routes/pedido.$slug.$token'
+import { Route as MSlugMesaNumeroRouteImport } from './routes/m.$slug.mesa.$numero'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -68,9 +75,19 @@ const DeliveryRoute = DeliveryRouteImport.update({
   path: '/delivery',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MesasRoute = MesasRouteImport.update({
   id: '/mesas',
   path: '/mesas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MotoboyRoute = MotoboyRouteImport.update({
+  id: '/motoboy',
+  path: '/motoboy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PdvRoute = PdvRouteImport.update({
@@ -78,14 +95,39 @@ const PdvRoute = PdvRouteImport.update({
   path: '/pdv',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PersonalizacaoRoute = PersonalizacaoRouteImport.update({
+  id: '/personalizacao',
+  path: '/personalizacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PromocoesRoute = PromocoesRouteImport.update({
+  id: '/promocoes',
+  path: '/promocoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CardapioSlugRoute = CardapioSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => CardapioRoute,
+} as any)
 const RSlugRoute = RSlugRouteImport.update({
   id: '/r/$slug',
   path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PedidoSlugTokenRoute = PedidoSlugTokenRouteImport.update({
+  id: '/pedido/$slug/$token',
+  path: '/pedido/$slug/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MSlugMesaNumeroRoute = MSlugMesaNumeroRouteImport.update({
+  id: '/m/$slug/mesa/$numero',
+  path: '/m/$slug/mesa/$numero',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -93,47 +135,68 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/caixa': typeof CaixaRoute
-  '/cardapio': typeof CardapioRoute
+  '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
+  '/motoboy': typeof MotoboyRoute
   '/pdv': typeof PdvRoute
+  '/personalizacao': typeof PersonalizacaoRoute
+  '/promocoes': typeof PromocoesRoute
   '/usuarios': typeof UsuariosRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/pedido/$slug/$token': typeof PedidoSlugTokenRoute
+  '/m/$slug/mesa/$numero': typeof MSlugMesaNumeroRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/caixa': typeof CaixaRoute
-  '/cardapio': typeof CardapioRoute
+  '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
+  '/motoboy': typeof MotoboyRoute
   '/pdv': typeof PdvRoute
+  '/personalizacao': typeof PersonalizacaoRoute
+  '/promocoes': typeof PromocoesRoute
   '/usuarios': typeof UsuariosRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/pedido/$slug/$token': typeof PedidoSlugTokenRoute
+  '/m/$slug/mesa/$numero': typeof MSlugMesaNumeroRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/caixa': typeof CaixaRoute
-  '/cardapio': typeof CardapioRoute
+  '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
   '/conversas': typeof ConversasRoute
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
+  '/motoboy': typeof MotoboyRoute
   '/pdv': typeof PdvRoute
+  '/personalizacao': typeof PersonalizacaoRoute
+  '/promocoes': typeof PromocoesRoute
   '/usuarios': typeof UsuariosRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/r/$slug': typeof RSlugRoute
+  '/pedido/$slug/$token': typeof PedidoSlugTokenRoute
+  '/m/$slug/mesa/$numero': typeof MSlugMesaNumeroRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,10 +210,17 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/login'
     | '/mesas'
+    | '/motoboy'
     | '/pdv'
+    | '/personalizacao'
+    | '/promocoes'
     | '/usuarios'
+    | '/cardapio/$slug'
     | '/r/$slug'
+    | '/pedido/$slug/$token'
+    | '/m/$slug/mesa/$numero'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -162,10 +232,17 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/login'
     | '/mesas'
+    | '/motoboy'
     | '/pdv'
+    | '/personalizacao'
+    | '/promocoes'
     | '/usuarios'
+    | '/cardapio/$slug'
     | '/r/$slug'
+    | '/pedido/$slug/$token'
+    | '/m/$slug/mesa/$numero'
   id:
     | '__root__'
     | '/'
@@ -177,26 +254,39 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/login'
     | '/mesas'
+    | '/motoboy'
     | '/pdv'
+    | '/personalizacao'
+    | '/promocoes'
     | '/usuarios'
+    | '/cardapio/$slug'
     | '/r/$slug'
+    | '/pedido/$slug/$token'
+    | '/m/$slug/mesa/$numero'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CaixaRoute: typeof CaixaRoute
-  CardapioRoute: typeof CardapioRoute
+  CardapioRoute: typeof CardapioRouteWithChildren
   ConexaoRoute: typeof ConexaoRoute
   ConversasRoute: typeof ConversasRoute
   CozinhaRoute: typeof CozinhaRoute
   DashboardRoute: typeof DashboardRoute
   DeliveryRoute: typeof DeliveryRoute
+  LoginRoute: typeof LoginRoute
   MesasRoute: typeof MesasRoute
+  MotoboyRoute: typeof MotoboyRoute
   PdvRoute: typeof PdvRoute
+  PersonalizacaoRoute: typeof PersonalizacaoRoute
+  PromocoesRoute: typeof PromocoesRoute
   UsuariosRoute: typeof UsuariosRoute
   RSlugRoute: typeof RSlugRoute
+  PedidoSlugTokenRoute: typeof PedidoSlugTokenRoute
+  MSlugMesaNumeroRoute: typeof MSlugMesaNumeroRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -264,11 +354,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeliveryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mesas': {
       id: '/mesas'
       path: '/mesas'
       fullPath: '/mesas'
       preLoaderRoute: typeof MesasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/motoboy': {
+      id: '/motoboy'
+      path: '/motoboy'
+      fullPath: '/motoboy'
+      preLoaderRoute: typeof MotoboyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pdv': {
@@ -278,12 +382,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PdvRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/personalizacao': {
+      id: '/personalizacao'
+      path: '/personalizacao'
+      fullPath: '/personalizacao'
+      preLoaderRoute: typeof PersonalizacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/promocoes': {
+      id: '/promocoes'
+      path: '/promocoes'
+      fullPath: '/promocoes'
+      preLoaderRoute: typeof PromocoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/usuarios': {
       id: '/usuarios'
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof UsuariosRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/cardapio/$slug': {
+      id: '/cardapio/$slug'
+      path: '/$slug'
+      fullPath: '/cardapio/$slug'
+      preLoaderRoute: typeof CardapioSlugRouteImport
+      parentRoute: typeof CardapioRoute
     }
     '/r/$slug': {
       id: '/r/$slug'
@@ -292,23 +417,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pedido/$slug/$token': {
+      id: '/pedido/$slug/$token'
+      path: '/pedido/$slug/$token'
+      fullPath: '/pedido/$slug/$token'
+      preLoaderRoute: typeof PedidoSlugTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m/$slug/mesa/$numero': {
+      id: '/m/$slug/mesa/$numero'
+      path: '/m/$slug/mesa/$numero'
+      fullPath: '/m/$slug/mesa/$numero'
+      preLoaderRoute: typeof MSlugMesaNumeroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface CardapioRouteChildren {
+  CardapioSlugRoute: typeof CardapioSlugRoute
+}
+
+const CardapioRouteChildren: CardapioRouteChildren = {
+  CardapioSlugRoute: CardapioSlugRoute,
+}
+
+const CardapioRouteWithChildren = CardapioRoute._addFileChildren(
+  CardapioRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CaixaRoute: CaixaRoute,
-  CardapioRoute: CardapioRoute,
+  CardapioRoute: CardapioRouteWithChildren,
   ConexaoRoute: ConexaoRoute,
   ConversasRoute: ConversasRoute,
   CozinhaRoute: CozinhaRoute,
   DashboardRoute: DashboardRoute,
   DeliveryRoute: DeliveryRoute,
+  LoginRoute: LoginRoute,
   MesasRoute: MesasRoute,
+  MotoboyRoute: MotoboyRoute,
   PdvRoute: PdvRoute,
+  PersonalizacaoRoute: PersonalizacaoRoute,
+  PromocoesRoute: PromocoesRoute,
   UsuariosRoute: UsuariosRoute,
   RSlugRoute: RSlugRoute,
+  PedidoSlugTokenRoute: PedidoSlugTokenRoute,
+  MSlugMesaNumeroRoute: MSlugMesaNumeroRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

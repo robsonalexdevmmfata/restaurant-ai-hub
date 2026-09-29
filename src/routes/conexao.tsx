@@ -26,7 +26,7 @@ const cells = Array.from({ length: 25 * 25 }, (_, i) => {
 });
 
 function Conexao() {
-  const { tenant, loading } = useRequireTenant();
+  const { tenant, loading } = useRequireTenant("owner");
   const [status, setStatus] = useState<"conectado" | "desconectado" | "pareando">("conectado");
   const [booting, setBooting] = useState(true);
 

@@ -7,14 +7,22 @@ import {
   integer,
   timestamp,
   jsonb,
+<<<<<<< HEAD
   boolean,
   unique,
+=======
+  uniqueIndex,
+>>>>>>> 19cf59f (vamos la)
 } from "drizzle-orm/pg-core";
 
 export const restaurants = pgTable("restaurants", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+<<<<<<< HEAD
   slug: varchar("slug", { length: 255 }).notNull(),
+=======
+  slug: varchar("slug", { length: 160 }).notNull().unique(),
+>>>>>>> 19cf59f (vamos la)
   whatsappInstance: varchar("whatsapp_instance", { length: 255 }).notNull().unique(),
   aiInstructions: text("ai_instructions"),
   description: text("description"),
@@ -28,6 +36,18 @@ export const restaurants = pgTable("restaurants", {
   openingHours: text("opening_hours"),
   isOpen: boolean("is_open").notNull().default(true),
 });
+
+export const diningTables = pgTable("dining_tables", {
+  id: serial("id").primaryKey(),
+  restaurantId: integer("restaurant_id").notNull().references(() => restaurants.id, { onDelete: "cascade" }),
+  tableNumber: integer("table_number").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("Livre"),
+  sessionId: varchar("session_id", { length: 64 }),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  restaurantTableUnique: uniqueIndex("dining_tables_restaurant_table_unique").on(table.restaurantId, table.tableNumber),
+}));
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -139,6 +159,7 @@ export const conversations = pgTable("conversations", {
 });
 
 export type Restaurant = typeof restaurants.$inferSelect;
+export type DiningTable = typeof diningTables.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Menu = typeof menus.$inferSelect;
 export type Product = typeof products.$inferSelect;

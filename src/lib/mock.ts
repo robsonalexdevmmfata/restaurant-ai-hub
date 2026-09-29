@@ -145,16 +145,17 @@ export type MenuItem = {
   description: string;
   price: number;
   available: boolean;
+  imageUrl?: string;
 };
 
 export const menu: MenuItem[] = [
-  { id: "1", category: "Pizzas salgadas", name: "Marguerita", description: "Molho de tomate, muçarela, manjericão fresco", price: 48.9, available: true },
-  { id: "2", category: "Pizzas salgadas", name: "Calabresa artesanal", description: "Calabresa fatiada, cebola roxa, orégano", price: 54.9, available: true },
-  { id: "3", category: "Pizzas salgadas", name: "Vegetariana da Casa", description: "Abobrinha, berinjela, tomate seco, muçarela", price: 56.9, available: true },
-  { id: "4", category: "Pizzas doces", name: "Banana com canela", description: "Banana caramelizada, canela, leite condensado", price: 39.9, available: false },
-  { id: "5", category: "Adicionais", name: "Borda recheada catupiry", description: "Borda generosa com catupiry original", price: 12, available: true },
-  { id: "6", category: "Bebidas", name: "Refrigerante 1L", description: "Cola, guaraná ou laranja", price: 8, available: true },
-  { id: "7", category: "Bebidas", name: "Água com gás 500ml", description: "Garrafa individual gelada", price: 6, available: true },
+  { id: "1", category: "Pizzas salgadas", name: "Marguerita", description: "Molho de tomate, muçarela, manjericão fresco", price: 48.9, available: true, imageUrl: "https://images.unsplash.com/photo-1579751626657-72bc17010498?auto=format&fit=crop&w=900&q=85" },
+  { id: "2", category: "Pizzas salgadas", name: "Calabresa artesanal", description: "Calabresa fatiada, cebola roxa, orégano", price: 54.9, available: true, imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&w=900&q=85" },
+  { id: "3", category: "Pizzas salgadas", name: "Vegetariana da Casa", description: "Abobrinha, berinjela, tomate seco, muçarela", price: 56.9, available: true, imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85" },
+  { id: "4", category: "Pizzas doces", name: "Banana com canela", description: "Banana caramelizada, canela, leite condensado", price: 39.9, available: false, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
+  { id: "5", category: "Adicionais", name: "Borda recheada catupiry", description: "Borda generosa com catupiry original", price: 12, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
+  { id: "6", category: "Bebidas", name: "Refrigerante 1L", description: "Cola, guaraná ou laranja", price: 8, available: true, imageUrl: "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=900&q=85" },
+  { id: "7", category: "Bebidas", name: "Água com gás 500ml", description: "Garrafa individual gelada", price: 6, available: true, imageUrl: "https://images.unsplash.com/photo-1559839914-17aae19cec71?auto=format&fit=crop&w=900&q=85" },
 ];
 
 export const defaultPrompt = `Você é o atendente virtual da Pizzaria Vulcão. Seja educado, objetivo e use no máximo duas frases por mensagem.

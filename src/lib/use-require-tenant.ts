@@ -1,16 +1,50 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { useTenant } from "./auth";
+import { signOut, type AppRole, useTenant } from "./auth";
+import { isSubscriptionSuspended, SUBSCRIPTION_EVENT } from "./billing";
 
 /** Simulated multi-tenant guard: sends visitors without a session back to login. */
-export function useRequireTenant() {
+export function useRequireTenant(requiredRole?: AppRole | AppRole[]) {
   const { tenant, loading } = useTenant();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !tenant) navigate({ to: "/", replace: true });
-  }, [loading, tenant, navigate]);
+    if (loading) return;
+
+    if (!tenant) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+
+    if (requiredRole && !Array.isArray(requiredRole) && tenant.role !== requiredRole) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+
+    if (requiredRole && Array.isArray(requiredRole) && !requiredRole.includes(tenant.role)) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+
+    const enforceSubscription = () => {
+      if (tenant.role === "super_admin" || !isSubscriptionSuspended(tenant.restaurantSlug)) return;
+      window.sessionStorage.setItem("restaurantai.suspension-notice", tenant.restaurant);
+      signOut();
+      navigate({ to: "/login", replace: true });
+    };
+
+    enforceSubscription();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "restaurantai.subscriptions") enforceSubscription();
+    };
+    window.addEventListener(SUBSCRIPTION_EVENT, enforceSubscription);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(SUBSCRIPTION_EVENT, enforceSubscription);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [loading, navigate, requiredRole, tenant]);
 
   return { tenant, loading };
 }

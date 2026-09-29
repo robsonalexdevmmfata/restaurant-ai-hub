@@ -1,124 +1,199 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, QrCode, Trash2 } from "lucide-react";
-import { useState } from "react";
-
-import { AppShell, Card, Skeleton } from "@/components/app-shell";
-import { Btn, Empty, Field, inputCls, Modal, PageGate, useLoad } from "@/components/kit";
-import { brl, type ApiTable } from "@/lib/api";
-import { data } from "@/lib/data";
+import { Printer, QrCode } from "lucide-react";
+import { useEffect } from "react";
+import { AppShell, Card } from "@/components/app-shell";
+import { createStaffActivity, updateTenantOperations, useTenantOperations, type RestaurantTableStatus } from "@/lib/operations";
+import { hasPublicApi, publicApiUrl } from "@/lib/public-api";
+import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
+const statusClasses: Record<RestaurantTableStatus, string> = {
+  Livre: "bg-emerald-100 text-emerald-700",
+  Ocupada: "bg-amber-100 text-amber-700",
+  "Comanda Aberta": "bg-sky-100 text-sky-700",
+  "Aguardando Pagamento": "bg-rose-100 text-rose-700",
+};
+
 export const Route = createFileRoute("/mesas")({
-  head: () => ({
-    meta: [
-      { title: "Mesas e QR Codes — RestauranteAI" },
-      { name: "description", content: "Cadastre mesas e gere QR Codes do cardápio digital." },
-      { property: "og:title", content: "Mesas e QR Codes — RestauranteAI" },
-      { property: "og:description", content: "Cadastre mesas e gere QR Codes do cardápio digital." },
-    ],
-  }),
-  component: MesasPage,
+  component: TablesView,
 });
 
-function MesasPage() {
-  const { tenant } = useRequireTenant();
-  const tables = useLoad(() => data.listTables(), [], 10000);
-  const slug = useLoad(() => data.restaurantSlug(), []);
-  const [edit, setEdit] = useState<Partial<ApiTable> | null>(null);
-  const [qr, setQr] = useState<ApiTable | null>(null);
-  if (!tenant) return <PageGate />;
+function TablesView() {
+  const { tenant, loading } = useRequireTenant("owner");
+  const slug = tenant?.restaurantSlug ?? "pizzaria-vulcao";
+  const { operations, update } = useTenantOperations(slug);
+  const tables = operations.tables;
 
-  const link = (t: ApiTable) =>
-    `${window.location.origin}/r/${slug.data ?? "meu"}?mesa=${encodeURIComponent(t.label)}`;
+  useEffect(() => {
+    if (!hasPublicApi()) return;
+    let active = true;
+    const syncTables = async () => {
+      try {
+        const response = await fetch(publicApiUrl(`/api/public/tenants/${encodeURIComponent(slug)}/tables`));
+        if (!response.ok) return;
+        const result = await response.json() as { tables: { tableNumber: number; status: string; sessionId: string | null; openedAt: string | null }[] };
+        if (!active) return;
+        updateTenantOperations(slug, (current) => ({
+          ...current,
+          tables: current.tables.map((table) => {
+            const remote = result.tables.find((item) => item.tableNumber === table.id);
+            if (!remote) return table;
+            const status = remote.status === "Livre" ? "Livre" : table.status === "Livre" ? "Ocupada" : table.status;
+            return { ...table, status, openedAt: remote.openedAt ?? table.openedAt, serverSessionId: remote.sessionId };
+          }),
+        }));
+      } catch {
+        // Local demo mode remains available when the API cannot be reached.
+      }
+    };
+    void syncTables();
+    const interval = window.setInterval(() => void syncTables(), 5_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [slug]);
 
-  async function save() {
-    if (!edit?.label) return;
-    if (edit.id) await data.updateTable(edit.id, { label: edit.label, seats: edit.seats });
-    else await data.createTable({ label: edit.label, seats: edit.seats });
-    setEdit(null);
-    tables.reload();
+  if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
+
+  function cycleStatus(id: number) {
+    if (!tenant) return;
+    const table = tables.find((item) => item.id === id);
+    if (!table) return;
+    const statusOrder: RestaurantTableStatus[] = ["Livre", "Ocupada", "Comanda Aberta", "Aguardando Pagamento"];
+    const nextStatus = statusOrder[(statusOrder.indexOf(table.status) + 1) % statusOrder.length]!;
+    const hasOpenBill = operations.orders.some((order) =>
+      order.orderType === "Salão" && order.paymentStatus === "Pendente" && Number(order.table.match(/\d+/)?.[0]) === id,
+    );
+    if (nextStatus === "Livre" && hasOpenBill) {
+      showToast({ title: "Comanda ainda aberta", description: "Feche a conta pelo Caixa antes de liberar esta mesa.", variant: "warning" });
+      return;
+    }
+    const timestamp = new Date().toISOString();
+    const activity = createStaffActivity(tenant, {
+      kind: "table",
+      title: nextStatus === "Livre" ? `Fechou Mesa ${id}` : table.status === "Livre" ? `Abriu Mesa ${id}` : `Atualizou Mesa ${id}`,
+      details: `Status alterado de ${table.status} para ${nextStatus}.`,
+      relatedId: `mesa-${id}`,
+    });
+    if (hasPublicApi() && table.serverSessionId && nextStatus === "Livre") {
+      void fetch(publicApiUrl(`/api/public/tenants/${encodeURIComponent(slug)}/tables/${id}/close`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: table.serverSessionId }),
+      });
+    }
+    if (hasPublicApi() && table.status === "Livre" && nextStatus !== "Livre") {
+      void fetch(publicApiUrl(`/api/public/tenants/${encodeURIComponent(slug)}/tables/${id}/open`), { method: "POST" });
+    }
+    update((current) => ({
+      ...current,
+      tables: current.tables.map((item) => item.id === id
+        ? { ...item, status: nextStatus, openedAt: nextStatus === "Livre" ? null : item.openedAt ?? timestamp, openedBy: nextStatus === "Livre" ? null : item.openedBy ?? tenant.name, serverSessionId: nextStatus === "Livre" ? null : item.serverSessionId }
+        : item),
+      staffAudit: [activity, ...current.staffAudit],
+    }));
+  }
+
+  function tableMenuUrl(tableId: number) {
+    return `${window.location.origin}/m/${tenant?.restaurantSlug ?? slug}/mesa/${tableId}`;
+  }
+
+  function printQr(tableId: number) {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableMenuUrl(tableId))}&size=420x420`;
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    if (!popup) showToast({ title: "Pop-up bloqueado", description: "Permita pop-ups para abrir o QR Code da mesa.", variant: "warning" });
   }
 
   return (
-    <AppShell
-      tenant={tenant}
-      title="Mesas"
-      subtitle="Cada mesa tem um QR Code que abre o cardápio digital"
-      action={
-        <Btn onClick={() => setEdit({ label: "", seats: 4 })}>
-          <Plus className="size-4" /> Nova mesa
-        </Btn>
-      }
-    >
-      {tables.error ? <p className="mb-3 text-[13px] text-red-600">{tables.error}</p> : null}
-      {!tables.data ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}
-        </div>
-      ) : tables.data.length === 0 ? (
-        <Card><Empty>Nenhuma mesa cadastrada. Clique em "Nova mesa".</Empty></Card>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {tables.data.map((t) => (
-            <Card key={t.id} className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-display text-[15px] font-semibold">{t.label}</p>
-                  <p className="text-[12px] text-stone-500">{t.seats} lugares</p>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${t.sessionId ? "bg-amber-100 text-amber-800" : "bg-brand/10 text-brand-deep"}`}>
-                  {t.sessionId ? "Ocupada" : "Livre"}
-                </span>
-              </div>
-              {t.sessionId ? (
-                <p className="mt-3 text-[13px]">
-                  {t.sessionOrders} pedido(s) · <b>{brl(t.sessionTotal)}</b>
-                </p>
-              ) : <p className="mt-3 text-[13px] text-stone-400">Sem consumo</p>}
-              <div className="mt-4 flex gap-1.5">
-                <Btn variant="ghost" className="flex-1" onClick={() => setQr(t)}>
-                  <QrCode className="size-4" /> QR Code
-                </Btn>
-                <Btn variant="ghost" aria-label="Editar" onClick={() => setEdit(t)}><Pencil className="size-4" /></Btn>
-                <Btn variant="danger" aria-label="Excluir" onClick={async () => {
-                  if (!confirm(`Excluir ${t.label}?`)) return;
-                  await data.deleteTable(t.id);
-                  tables.reload();
-                }}><Trash2 className="size-4" /></Btn>
-              </div>
+    <AppShell tenant={tenant} title="Mesas do salão" subtitle={`${tenant.restaurant} · gestão de ocupação em tempo real`}>
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Mesas livres", tables.filter((table) => table.status === "Livre").length],
+            ["Ocupadas", tables.filter((table) => table.status === "Ocupada").length],
+            ["Comandas abertas", tables.filter((table) => table.status === "Comanda Aberta").length],
+            ["Pagamentos pendentes", tables.filter((table) => table.status === "Aguardando Pagamento").length],
+          ].map(([label, value]) => (
+            <Card key={label} className="p-4">
+              <p className="text-[12px] font-medium text-stone-500">{label}</p>
+              <p className="mt-2 font-display text-2xl font-semibold tracking-tight">{value}</p>
             </Card>
           ))}
         </div>
-      )}
 
-      <Modal open={!!edit} title={edit?.id ? "Editar mesa" : "Nova mesa"} onClose={() => setEdit(null)}>
-        <div className="space-y-3">
-          <Field label="Nome da mesa">
-            <input className={inputCls} value={edit?.label ?? ""} placeholder="Mesa 7" onChange={(e) => setEdit({ ...edit, label: e.target.value })} />
-          </Field>
-          <Field label="Lugares">
-            <input type="number" min={1} className={inputCls} value={edit?.seats ?? 4} onChange={(e) => setEdit({ ...edit, seats: Number(e.target.value) })} />
-          </Field>
-          <Btn className="w-full" onClick={save}>Salvar</Btn>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {tables.map((table) => {
+            return (
+              <Card key={table.id} className="overflow-hidden p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-display text-xl font-semibold">Mesa {String(table.id).padStart(2, "0")}</p>
+                    <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${statusClasses[table.status]}`}>
+                      {table.status}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => cycleStatus(table.id)}
+                    className="rounded-md border border-black/5 bg-stone-50 px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-100"
+                  >
+                    Trocar status
+                  </button>
+                </div>
+
+                <div className="mt-4 flex flex-col items-center rounded-lg bg-stone-50 px-4 py-5 ring-1 ring-black/5">
+                  <div
+                    role="img"
+                    aria-label={`Pré-visualização do QR Code da mesa ${table.id}`}
+                    className="relative grid size-36 place-items-center rounded-xl border border-stone-200 bg-white shadow-sm"
+                  >
+                    <span className="absolute left-3 top-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
+                      <span className="size-2.5 rounded-sm bg-ink" />
+                    </span>
+                    <span className="absolute right-3 top-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
+                      <span className="size-2.5 rounded-sm bg-ink" />
+                    </span>
+                    <span className="absolute bottom-3 left-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
+                      <span className="size-2.5 rounded-sm bg-ink" />
+                    </span>
+                    <span className="absolute bottom-5 right-5 size-2 rounded-sm bg-brand/30" />
+                    <span className="absolute right-9 top-12 size-1.5 rounded-sm bg-stone-300" />
+                    <span className="absolute bottom-10 right-10 size-1.5 rounded-sm bg-stone-300" />
+                    <span className="relative grid size-12 place-items-center rounded-lg bg-emerald-50 text-brand ring-1 ring-brand/15">
+                      <QrCode className="size-7" />
+                    </span>
+                  </div>
+                  <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
+                    QR Code · Mesa {String(table.id).padStart(2, "0")}
+                  </p>
+                  <a href={tableMenuUrl(table.id)} target="_blank" rel="noreferrer" className="mt-1 max-w-full break-all text-[10px] text-brand hover:underline">
+                    {tableMenuUrl(table.id)}
+                  </a>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => printQr(table.id)}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-[12px] font-medium text-white hover:bg-brand-deep"
+                  >
+                    <QrCode className="size-4" />
+                    QR Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="inline-flex items-center justify-center rounded-md border border-black/5 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+                  >
+                    <Printer className="size-4" />
+                  </button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
-      </Modal>
-
-      <Modal open={!!qr} title={`QR Code — ${qr?.label ?? ""}`} onClose={() => setQr(null)}>
-        {qr ? (
-          <div className="space-y-3 text-center">
-            <img
-              alt={`QR Code da ${qr.label}`}
-              className="mx-auto size-56 rounded-lg ring-1 ring-black/5"
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(link(qr))}`}
-            />
-            <p className="break-all text-[12px] text-stone-500">{link(qr)}</p>
-            <div className="flex gap-2">
-              <Btn variant="ghost" className="flex-1" onClick={() => navigator.clipboard.writeText(link(qr))}>Copiar link</Btn>
-              <Btn className="flex-1" onClick={() => window.print()}>Imprimir</Btn>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      </div>
     </AppShell>
   );
 }

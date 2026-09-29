@@ -70,3 +70,15 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Entregas e WhatsApp
+
+O planejador usa Haversine quando o pedido tem latitude/longitude, agrupa por bairro e usa a distância cadastrada como fallback. A busca de CEP é uma geocodificação best-effort; confirme o destino antes de iniciar a rota.
+
+Para notificações reais, configure `VITE_EVOLUTION_NOTIFICATION_PROXY_URL` para um endpoint server-side confiável. Ele recebe `customerPhone`, `orderId`, `event` e `message` em JSON, deve validar a origem/tenant e encaminhar à Evolution usando segredos mantidos no servidor. Nunca coloque `EVOLUTION_API_KEY` em variável `VITE_*`. Sem proxy ou telefone do cliente, as notificações são registradas como simuladas/sem telefone no estado local.
+
+O link de rastreio demonstra progresso no navegador e lê os pedidos do estado do tenant. O cardápio/branding ainda usa `localStorage`; para publicar catálogo personalizado entre dispositivos, sincronize esses dados com a API antes de produção.
+
+### QR de mesa entre dispositivos
+
+O backend inclui a migração `backend/sql/002_public_dining_tables.sql`, que adiciona o slug e as sessões de mesa no PostgreSQL. Aplique-a antes de iniciar a API. Configure `VITE_API_BASE_URL` com um endereço alcançável pelo celular que escaneia o QR; `localhost` só funciona quando navegador e API estão no mesmo dispositivo. Com a API configurada, a ocupação é consultada entre dispositivos; sem ela, usa o estado local de demonstração. Antes de produção, proteja os endpoints de abertura/fechamento com token QR assinado e limite de requisições.

@@ -5,6 +5,10 @@ import { db } from "../../db/index.js";
 import { menus, restaurants, users } from "../../db/schema.js";
 import type { RegisterInput } from "./schemas.js";
 
+function toRestaurantSlug(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 export async function findUserByEmail(email: string) {
   const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   return row ?? null;
@@ -30,6 +34,7 @@ export async function registerOwner(input: RegisterInput) {
   const suffix = Math.random().toString(36).slice(2, 6);
 
   return db.transaction(async (tx) => {
+<<<<<<< HEAD
     const [existing] = await tx
       .select({ id: restaurants.id })
       .from(restaurants)
@@ -38,12 +43,27 @@ export async function registerOwner(input: RegisterInput) {
 
     const slug = existing ? `${baseSlug}-${suffix}` : baseSlug;
 
+=======
+    const baseSlug = toRestaurantSlug(input.restaurantName) || "restaurante";
+    let slug = baseSlug;
+    let suffix = 2;
+    while (true) {
+      const [existingSlug] = await tx.select({ id: restaurants.id }).from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
+      if (!existingSlug) break;
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+>>>>>>> 19cf59f (vamos la)
     const [restaurant] = await tx
       .insert(restaurants)
       .values({
         name: input.restaurantName,
         slug,
+<<<<<<< HEAD
         whatsappInstance: input.whatsappInstance ?? slug,
+=======
+        whatsappInstance: input.whatsappInstance,
+>>>>>>> 19cf59f (vamos la)
         aiInstructions: input.aiInstructions ?? null,
         phone: input.phone ?? null,
         whatsapp: input.whatsapp ?? null,

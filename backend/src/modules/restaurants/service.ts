@@ -11,6 +11,11 @@ export async function getRestaurantById(id: number) {
   return row ?? null;
 }
 
+export async function getRestaurantBySlug(slug: string) {
+  const [row] = await db.select().from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
+  return row ?? null;
+}
+
 export async function getRestaurantByInstance(instance: string) {
   const [row] = await db
     .select()
