@@ -1,9 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-<<<<<<< HEAD
-  LayoutPanelLeft, MessageSquare, UtensilsCrossed, QrCode, LogOut, Store, Armchair, ChefHat, Wallet,
-  ShoppingBag, Bike, Users, ShieldCheck, ExternalLink,
-=======
+  ExternalLink,
   LayoutPanelLeft,
   MessageSquare,
   UtensilsCrossed,
@@ -21,7 +18,6 @@ import {
   Palette,
   TicketPercent,
   type LucideIcon,
->>>>>>> 19cf59f (vamos la)
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -29,21 +25,6 @@ import logo from "@/assets/logo.png";
 import { signOut, type AppRole, type Tenant } from "@/lib/auth";
 import { ToastViewport } from "@/lib/toast";
 
-<<<<<<< HEAD
-const nav = [
-  { to: "/dashboard", label: "Visão geral", icon: LayoutPanelLeft },
-  { to: "/conversas", label: "Conversas", icon: MessageSquare, badge: "3" },
-  { to: "/cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { to: "/mesas", label: "Mesas", icon: Armchair },
-  { to: "/pdv", label: "PDV", icon: ShoppingBag },
-  { to: "/cozinha", label: "Cozinha", icon: ChefHat },
-  { to: "/delivery", label: "Delivery", icon: Bike },
-  { to: "/caixa", label: "Caixa", icon: Wallet },
-  { to: "/usuarios", label: "Usuários", icon: Users },
-  { to: "/conexao", label: "Conexão", icon: QrCode },
-  { to: "/admin", label: "Super admin", icon: ShieldCheck },
-] as const;
-=======
 export type AppNavItem = {
   to: string;
   label: string;
@@ -89,7 +70,6 @@ const roleLabel: Record<AppRole, string> = {
   caixa: "Caixa / PDV",
   motoboy: "Motoboy",
 };
->>>>>>> 19cf59f (vamos la)
 
 export function AppShell({
   tenant,

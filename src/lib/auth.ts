@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
+import { clearToken } from "./api";
 
-<<<<<<< HEAD
-import { api, ApiError, clearToken, setToken } from "./api";
-import { setDemoRestaurant } from "./data";
-
-const KEY = "restauranteai.tenant";
-=======
 export type AppRole = "super_admin" | "owner" | "cozinha" | "caixa" | "motoboy";
->>>>>>> 19cf59f (vamos la)
 
 export type Tenant = {
   id: string;
@@ -16,14 +10,9 @@ export type Tenant = {
   restaurantId: string;
   restaurantSlug: string;
   owner: string;
-<<<<<<< HEAD
-  role?: string;
-  demo?: boolean;
-=======
   name: string;
   role: AppRole;
   avatar: string;
->>>>>>> 19cf59f (vamos la)
 };
 
 export type RestaurantStaffMember = {
@@ -195,55 +184,6 @@ export function getSession(): AuthSession | null {
   }
 }
 
-<<<<<<< HEAD
-function store(t: Tenant) {
-  window.localStorage.setItem(KEY, JSON.stringify(t));
-  return t;
-}
-
-/** Login real no backend; se o servidor estiver offline entra no modo demonstração. */
-export async function login(email: string, password: string): Promise<Tenant> {
-  try {
-    const r = await api.login(email, password);
-    setToken(r.token);
-    return store({ email, restaurant: r.restaurant.name, owner: r.user.name ?? email, role: r.user.role });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 0) return signIn(email);
-    throw e;
-  }
-}
-
-export async function register(input: {
-  restaurantName: string;
-  ownerName: string;
-  email: string;
-  password: string;
-  whatsapp?: string;
-  city?: string;
-}): Promise<Tenant> {
-  try {
-    const r = await api.register(input);
-    setToken(r.token);
-    return store({ email: input.email, restaurant: r.restaurant.name, owner: r.user.name ?? input.ownerName, role: r.user.role });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 0) {
-      setDemoRestaurant(input.restaurantName);
-      return signIn(input.email, input.restaurantName, input.ownerName);
-    }
-    throw e;
-  }
-}
-
-export function signIn(email: string, restaurant?: string, owner?: string): Tenant {
-  clearToken();
-  return store({
-    email,
-    restaurant: restaurant?.trim() || "Pizzaria Vulcão",
-    owner: owner?.trim() || "Marco Silva",
-    role: "OWNER",
-    demo: true,
-  });
-=======
 export function getTenant(): Tenant | null {
   return getSession()?.user ?? null;
 }
@@ -302,7 +242,6 @@ export function signInAs(role: AppRole): Tenant {
 
   setSession(tenant);
   return tenant;
->>>>>>> 19cf59f (vamos la)
 }
 
 export function signOut() {
@@ -311,9 +250,6 @@ export function signOut() {
   clearToken();
 }
 
-<<<<<<< HEAD
-/** Lê a sessão no cliente. `loading` fica true até hidratar. */
-=======
 export function canAccessRole(user: Tenant | null, requiredRoles: AppRole | AppRole[]) {
   if (!user) return false;
   const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
@@ -333,7 +269,6 @@ export function useSession() {
 }
 
 /** Reads the simulated session on the client. `loading` is true until hydrated. */
->>>>>>> 19cf59f (vamos la)
 export function useTenant() {
   const { user, loading } = useSession();
   return { tenant: user, loading };
