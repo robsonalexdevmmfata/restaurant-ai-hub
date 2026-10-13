@@ -1,9 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-<<<<<<< HEAD
-  LayoutPanelLeft, MessageSquare, UtensilsCrossed, QrCode, LogOut, Store, Armchair, ChefHat, Wallet,
-  ShoppingBag, Bike, Users, ShieldCheck, ExternalLink,
-=======
+  ExternalLink,
   LayoutPanelLeft,
   MessageSquare,
   UtensilsCrossed,
@@ -21,29 +18,16 @@ import {
   Palette,
   TicketPercent,
   type LucideIcon,
->>>>>>> 19cf59f (vamos la)
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Btn } from "@/components/kit";
+import { ProfileEditor } from "@/components/profile-editor";
 
 import logo from "@/assets/logo.png";
 import { signOut, type AppRole, type Tenant } from "@/lib/auth";
 import { ToastViewport } from "@/lib/toast";
 
-<<<<<<< HEAD
-const nav = [
-  { to: "/dashboard", label: "Visão geral", icon: LayoutPanelLeft },
-  { to: "/conversas", label: "Conversas", icon: MessageSquare, badge: "3" },
-  { to: "/cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { to: "/mesas", label: "Mesas", icon: Armchair },
-  { to: "/pdv", label: "PDV", icon: ShoppingBag },
-  { to: "/cozinha", label: "Cozinha", icon: ChefHat },
-  { to: "/delivery", label: "Delivery", icon: Bike },
-  { to: "/caixa", label: "Caixa", icon: Wallet },
-  { to: "/usuarios", label: "Usuários", icon: Users },
-  { to: "/conexao", label: "Conexão", icon: QrCode },
-  { to: "/admin", label: "Super admin", icon: ShieldCheck },
-] as const;
-=======
 export type AppNavItem = {
   to: string;
   label: string;
@@ -64,6 +48,11 @@ const navByRole: Record<AppRole, AppNavItem[]> = {
     { to: "/personalizacao", label: "Personalização", icon: Palette },
     { to: "/promocoes", label: "Promoções", icon: TicketPercent },
     { to: "/mesas", label: "Mesas", icon: TableProperties },
+    { to: "/pdv", label: "PDV", icon: Store },
+    { to: "/cozinha", label: "Cozinha", icon: ChefHat },
+    { to: "/delivery", label: "Delivery", icon: Bike },
+    { to: "/caixa", label: "Caixa", icon: Banknote },
+    { to: "/usuarios", label: "Usuários", icon: Users },
     { to: "/conexao", label: "Conexão", icon: QrCode },
     { to: "/dashboard#equipe", label: "Equipe", icon: Users },
   ],
@@ -89,7 +78,6 @@ const roleLabel: Record<AppRole, string> = {
   caixa: "Caixa / PDV",
   motoboy: "Motoboy",
 };
->>>>>>> 19cf59f (vamos la)
 
 export function AppShell({
   tenant,
@@ -105,6 +93,14 @@ export function AppShell({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [profileOpen, setProfileOpen] = useState(false);
+  async function logout() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    signOut();
+    await navigate({ to: "/login", replace: true });
+  }
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = navByRole[tenant.role] ?? navByRole.owner;
 
@@ -121,7 +117,7 @@ export function AppShell({
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
           <span className="px-2 text-[10px] font-medium uppercase tracking-[0.15em] text-stone-600">Painel</span>
           {nav.map((item) => {
-            const active = pathname === item.to || (item.to.includes("#") && pathname.startsWith(item.to.split("#")[0]));
+            const active = pathname === item.to || (item.to.includes("#") && pathname === (item.to.split("#")[0] ?? ""));
             return (
               <Link
                 key={item.to}
@@ -148,8 +144,8 @@ export function AppShell({
             {tenant.restaurant}
           </div>
           <Link
-            to="/r/$slug"
-            params={{ slug: "meu" }}
+            to="/cardapio/$slug"
+            params={{ slug: tenant.restaurantSlug }}
             target="_blank"
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium hover:bg-white/5"
           >
@@ -170,40 +166,39 @@ export function AppShell({
             <p className="truncate text-[12px] font-medium text-white">{tenant.name}</p>
             <p className="truncate text-[11px] text-stone-500">{roleLabel[tenant.role] ?? "Usuário"}</p>
           </div>
-          <button
-            type="button"
-            aria-label="Sair"
-            onClick={() => {
-              signOut();
-              navigate({ to: "/login", replace: true });
-            }}
-            className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-stone-400 transition-colors hover:bg-white/5 hover:text-white"
+          <Btn
+            variant="ghost"
+            aria-label="Sair da conta"
+            title="Sair da conta"
+            onClick={() => void logout()}
+            className="ml-auto size-8 shrink-0 p-0"
           >
             <LogOut className="size-4" />
-          </button>
+          </Btn>
         </div>
       </aside>
 
       <main className="lg:ml-60">
         <ToastViewport />
         <header className="sticky top-0 z-20 border-b border-black/5 bg-stone-100/90 backdrop-blur">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="min-w-0">
               <h1 className="font-display text-lg font-semibold tracking-tight text-balance">{title}</h1>
               <p className="truncate text-[12px] text-stone-500">{subtitle}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[12px] font-medium ring-1 ring-black/5 sm:inline-flex">
-                <span className="size-1.5 rounded-full bg-brand" /> IA ativa
-              </span>
               {action}
+              <Btn variant="ghost" aria-label="Meu perfil" title="Meu perfil" onClick={() => setProfileOpen(true)} className="size-9 shrink-0 p-0">
+                <img src={tenant.avatar} alt={tenant.name} className="size-7 rounded-full object-cover" />
+              </Btn>
+              <Btn variant="ghost" aria-label="Sair" title="Sair" onClick={() => void logout()} className="size-9 shrink-0 p-0"><LogOut className="size-4" /></Btn>
             </div>
           </div>
         </header>
         <div className="p-4 sm:p-6">{children}</div>
         <nav className="sticky bottom-0 z-20 flex overflow-x-auto border-t border-black/5 bg-white lg:hidden">
           {nav.map((item) => {
-            const active = pathname === item.to || (item.to.includes("#") && pathname.startsWith(item.to.split("#")[0]));
+            const active = pathname === item.to || (item.to.includes("#") && pathname === (item.to.split("#")[0] ?? ""));
             return (
               <Link
                 key={item.to}
@@ -219,6 +214,7 @@ export function AppShell({
           })}
         </nav>
       </main>
+      {profileOpen && <ProfileEditor tenant={tenant} onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }

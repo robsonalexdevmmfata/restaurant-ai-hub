@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
+import { clearToken } from "./api";
 
-<<<<<<< HEAD
-import { api, ApiError, clearToken, setToken } from "./api";
-import { setDemoRestaurant } from "./data";
-
-const KEY = "restauranteai.tenant";
-=======
 export type AppRole = "super_admin" | "owner" | "cozinha" | "caixa" | "motoboy";
->>>>>>> 19cf59f (vamos la)
 
 export type Tenant = {
   id: string;
@@ -16,18 +10,14 @@ export type Tenant = {
   restaurantId: string;
   restaurantSlug: string;
   owner: string;
-<<<<<<< HEAD
-  role?: string;
-  demo?: boolean;
-=======
   name: string;
   role: AppRole;
   avatar: string;
->>>>>>> 19cf59f (vamos la)
 };
 
 export type RestaurantStaffMember = {
   id: string;
+  restaurantId?: string;
   email: string;
   password: string;
   name: string;
@@ -195,55 +185,6 @@ export function getSession(): AuthSession | null {
   }
 }
 
-<<<<<<< HEAD
-function store(t: Tenant) {
-  window.localStorage.setItem(KEY, JSON.stringify(t));
-  return t;
-}
-
-/** Login real no backend; se o servidor estiver offline entra no modo demonstração. */
-export async function login(email: string, password: string): Promise<Tenant> {
-  try {
-    const r = await api.login(email, password);
-    setToken(r.token);
-    return store({ email, restaurant: r.restaurant.name, owner: r.user.name ?? email, role: r.user.role });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 0) return signIn(email);
-    throw e;
-  }
-}
-
-export async function register(input: {
-  restaurantName: string;
-  ownerName: string;
-  email: string;
-  password: string;
-  whatsapp?: string;
-  city?: string;
-}): Promise<Tenant> {
-  try {
-    const r = await api.register(input);
-    setToken(r.token);
-    return store({ email: input.email, restaurant: r.restaurant.name, owner: r.user.name ?? input.ownerName, role: r.user.role });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 0) {
-      setDemoRestaurant(input.restaurantName);
-      return signIn(input.email, input.restaurantName, input.ownerName);
-    }
-    throw e;
-  }
-}
-
-export function signIn(email: string, restaurant?: string, owner?: string): Tenant {
-  clearToken();
-  return store({
-    email,
-    restaurant: restaurant?.trim() || "Pizzaria Vulcão",
-    owner: owner?.trim() || "Marco Silva",
-    role: "OWNER",
-    demo: true,
-  });
-=======
 export function getTenant(): Tenant | null {
   return getSession()?.user ?? null;
 }
@@ -251,6 +192,27 @@ export function getTenant(): Tenant | null {
 export function setSession(user: Tenant) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(KEY, JSON.stringify({ user }));
+  window.dispatchEvent(new Event("restaurantai:session"));
+}
+
+export function updateProfile(input: Pick<Tenant, "name" | "avatar">) {
+  const current = getTenant();
+  if (!current) throw new Error("Entre novamente para editar seu perfil.");
+  const name = input.name.trim();
+  if (!name) throw new Error("Informe seu nome.");
+  const next = { ...current, name, avatar: input.avatar };
+  window.localStorage.setItem(`restaurantai.profile.${current.email}`, JSON.stringify(input));
+  setSession(next);
+  return next;
+}
+
+function restoreProfile(tenant: Tenant): Tenant {
+  try {
+    const raw = window.localStorage.getItem(`restaurantai.profile.${tenant.email}`);
+    if (!raw) return tenant;
+    const profile = JSON.parse(raw) as Pick<Tenant, "name" | "avatar">;
+    return { ...tenant, name: profile.name || tenant.name, avatar: profile.avatar || tenant.avatar };
+  } catch { return tenant; }
 }
 
 export function signIn(email: string, password?: string): Tenant {
@@ -282,8 +244,10 @@ export function signIn(email: string, password?: string): Tenant {
     avatar: account.avatar,
   };
 
-  setSession(tenant);
-  return tenant;
+  const user = restoreProfile(tenant);
+  clearToken();
+  setSession(user);
+  return user;
 }
 
 export function signInAs(role: AppRole): Tenant {
@@ -300,20 +264,19 @@ export function signInAs(role: AppRole): Tenant {
     avatar: account.avatar,
   };
 
-  setSession(tenant);
-  return tenant;
->>>>>>> 19cf59f (vamos la)
+  const user = restoreProfile(tenant);
+  clearToken();
+  setSession(user);
+  return user;
 }
 
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(KEY);
   clearToken();
+  window.dispatchEvent(new Event("restaurantai:session"));
 }
 
-<<<<<<< HEAD
-/** Lê a sessão no cliente. `loading` fica true até hidratar. */
-=======
 export function canAccessRole(user: Tenant | null, requiredRoles: AppRole | AppRole[]) {
   if (!user) return false;
   const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
@@ -325,15 +288,22 @@ export function useSession() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setSessionState(getSession());
+    const refresh = () => setSessionState(getSession());
+    refresh();
     setLoading(false);
+    window.addEventListener("restaurantai:session", refresh);
+    const onStorage = (event: StorageEvent) => { if (event.key === KEY) refresh(); };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("restaurantai:session", refresh);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   return { session, user: session?.user ?? null, loading };
 }
 
 /** Reads the simulated session on the client. `loading` is true until hydrated. */
->>>>>>> 19cf59f (vamos la)
 export function useTenant() {
   const { user, loading } = useSession();
   return { tenant: user, loading };

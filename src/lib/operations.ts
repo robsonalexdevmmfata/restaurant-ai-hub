@@ -38,7 +38,7 @@ export type RestaurantTable = {
   status: RestaurantTableStatus;
   openedAt: string | null;
   openedBy: string | null;
-  serverSessionId?: string | null;
+  serverSessionId?: string | null | undefined;
 };
 
 export type StaffAuditEntry = {
@@ -50,7 +50,7 @@ export type StaffAuditEntry = {
   kind: StaffActivityKind;
   title: string;
   details: string;
-  relatedId?: string;
+  relatedId?: string | undefined;
   createdAt: string;
 };
 
@@ -104,8 +104,8 @@ export type DeliveryHistoryEntry = {
   distanceKm: number;
   fee: number;
   method: DeliveryCollectionMethod;
-  orderAmountCollected?: number;
-  orderPaymentMethod?: DeliveryCollectionMethod;
+  orderAmountCollected?: number | undefined;
+  orderPaymentMethod?: DeliveryCollectionMethod | undefined;
   completedAt: string;
 };
 
@@ -129,26 +129,26 @@ export type OperationalOrder = {
   items: { name: string; qty: number; price: number }[];
   kitchenStatus: KitchenOrderStatus;
   paymentStatus: PaymentStatus;
-  paymentMethod?: PaymentMethod;
-  requestedPaymentMethod?: PaymentMethod;
+  paymentMethod?: PaymentMethod | undefined;
+  requestedPaymentMethod?: PaymentMethod | undefined;
   deliveryStatus: DeliveryStatus;
   orderType: OrderType;
   waitMinutes: number;
   neighborhood: string;
   distanceKm: number;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
-  customerPhone?: string;
-  driverName?: string;
-  trackingToken?: string;
-  routeProgress?: number;
-  couponCode?: string;
-  couponDiscount?: number;
-  deliveryFee?: number;
-  discountType?: DiscountType;
-  discountValue?: number;
-  discountAmount?: number;
+  postalCode?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  customerPhone?: string | undefined;
+  driverName?: string | undefined;
+  trackingToken?: string | undefined;
+  routeProgress?: number | undefined;
+  couponCode?: string | undefined;
+  couponDiscount?: number | undefined;
+  deliveryFee?: number | undefined;
+  discountType?: DiscountType | undefined;
+  discountValue?: number | undefined;
+  discountAmount?: number | undefined;
 };
 
 export type TenantOperations = {
@@ -294,10 +294,10 @@ export function getTenantOperations(slug: string): TenantOperations {
         return {
           ...fallback,
           ...order,
-          orderType: order.orderType ?? fallback.orderType,
-          waitMinutes: order.waitMinutes ?? fallback.waitMinutes,
-          neighborhood: order.neighborhood ?? fallback.neighborhood,
-          distanceKm: order.distanceKm ?? fallback.distanceKm,
+          orderType: order.orderType ?? fallback?.orderType ?? "Balcão",
+          waitMinutes: order.waitMinutes ?? fallback?.waitMinutes ?? 0,
+          neighborhood: order.neighborhood ?? fallback?.neighborhood ?? "",
+          distanceKm: order.distanceKm ?? fallback?.distanceKm ?? 0,
         };
       });
 
