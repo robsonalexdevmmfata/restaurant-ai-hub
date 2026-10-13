@@ -24,6 +24,10 @@
   --color-ink: #101312;
   --color-brand: #128c45;
   --color-brand-deep: #0d6c35;
+  --color-menu-brand: var(--menu-brand, var(--color-brand));
+  --color-menu-on-brand: var(--menu-on-brand, var(--primary-foreground));
+  --color-cover-foreground: var(--cover-foreground);
+  --color-menu-surface: var(--menu-surface);
 
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -69,6 +73,9 @@
 }
 
 :root {
+  --menu-surface: oklch(0.975 0.003 145);
+  --cover-foreground: oklch(1 0 0);
+  --cover-scrim: linear-gradient(90deg, oklch(0.12 0.01 145 / 85%), oklch(0.12 0.01 145 / 15%));
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
@@ -169,3 +176,10 @@
 @utility fade-in {
   animation: fadeUp 0.45s ease both;
 }
+
+.menu-cover::after { content: ""; position: absolute; inset: 0; background: var(--cover-scrim); }
+.menu-button { background: var(--menu-brand, var(--color-brand)); color: var(--menu-on-brand, var(--primary-foreground)); }
+.menu-button:hover { filter: brightness(0.94); }
+.menu-soft { background: color-mix(in oklab, var(--menu-brand, var(--color-brand)) 10%, var(--card)); }
+.menu-price { color: var(--menu-brand, var(--color-brand)); }
+@media (prefers-reduced-motion: reduce) { .fade-in, .skeleton { animation: none; } }

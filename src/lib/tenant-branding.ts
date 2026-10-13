@@ -7,6 +7,13 @@ export type TenantBranding = {
   logoUrl: string;
   faviconUrl: string;
   cnpj: string;
+  displayName: string;
+  description: string;
+  coverUrl: string;
+  openingHours: string;
+  phone: string;
+  address: string;
+  isOpen: boolean;
   deliveryFees: DeliveryFeeSettings;
 };
 
@@ -18,6 +25,13 @@ export const defaultTenantBranding: TenantBranding = {
   logoUrl: "",
   faviconUrl: "",
   cnpj: "",
+  displayName: "",
+  description: "",
+  coverUrl: "",
+  openingHours: "",
+  phone: "",
+  address: "",
+  isOpen: true,
   deliveryFees: defaultDeliveryFeeSettings,
 };
 
