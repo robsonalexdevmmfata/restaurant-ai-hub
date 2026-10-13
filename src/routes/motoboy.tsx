@@ -102,6 +102,7 @@ function DeliveryView() {
   }
 
   function startDelivery(id: string, address: string) {
+    if (!tenant) return;
     if (!operations.deliveryShiftStartedAt) {
       showToast({ title: "Inicie seu turno", description: "Abra o turno antes de sair para uma entrega.", variant: "warning" });
       return;
@@ -204,7 +205,7 @@ function DeliveryView() {
               ...item,
               deliveryStatus: "Entregue",
               paymentStatus: orderCollected > 0 ? "Pago" : item.paymentStatus,
-              paymentMethod: orderCollected > 0 ? orderPaymentMethod : item.paymentMethod,
+              paymentMethod: orderCollected > 0 && orderPaymentMethod !== "Não recebido" ? orderPaymentMethod : item.paymentMethod,
             }
           : item),
       };

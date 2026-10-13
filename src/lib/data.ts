@@ -168,7 +168,8 @@ export const data = {
       () =>
         mutate((d) => {
           if (input.isActive) d.menus.forEach((m) => (m.isActive = false));
-          const m = d.menus.find((x) => x.id === id)!;
+          const m = d.menus.find((x) => x.id === id);
+          if (!m) throw new Error("Registro não encontrado");
           Object.assign(m, input);
           if (input.name) m.slug = slugify(input.name);
           return m;
@@ -216,7 +217,8 @@ export const data = {
       () => api.updateProduct(id, input),
       () =>
         mutate((d) => {
-          const p = d.products.find((x) => x.id === id)!;
+          const p = d.products.find((x) => x.id === id);
+          if (!p) throw new Error("Registro não encontrado");
           const { price, ...rest } = input;
           Object.assign(p, rest);
           if (price !== undefined) p.price = price.toFixed(2);
@@ -263,7 +265,10 @@ export const data = {
       () => api.updateTable(id, input),
       () =>
         mutate((d) => {
-          Object.assign(d.tables.find((t) => t.id === id)!, input);
+          const table = d.tables.find((t) => t.id === id);
+          if (!table) throw new Error("Mesa não encontrada");
+          Object.assign(table, input);
+          return { ...table, sessionId: null, sessionOpenedAt: null, sessionTotal: 0, sessionOrders: 0 };
         }),
     ),
   deleteTable: (id: number) =>
@@ -287,7 +292,8 @@ export const data = {
       () => api.updateOrderStatus(id, status),
       () =>
         mutate((d) => {
-          const o = d.orders.find((x) => x.id === id)!;
+          const o = d.orders.find((x) => x.id === id);
+          if (!o) throw new Error("Registro não encontrado");
           o.status = status;
           return o;
         }),
@@ -343,7 +349,8 @@ export const data = {
       () => api.closeSession(sessionId, payment),
       () =>
         mutate((d) => {
-          const s = d.sessions.find((x) => x.id === sessionId)!;
+          const s = d.sessions.find((x) => x.id === sessionId);
+          if (!s) throw new Error("Registro não encontrado");
           s.closedAt = new Date().toISOString();
           s.payment = payment;
           d.orders.forEach((o) => {
@@ -370,7 +377,8 @@ export const data = {
       () => api.updateUser(id, input),
       () =>
         mutate((d) => {
-          const u = d.users.find((x) => x.id === id)!;
+          const u = d.users.find((x) => x.id === id);
+          if (!u) throw new Error("Registro não encontrado");
           Object.assign(u, input);
           return u;
         }),

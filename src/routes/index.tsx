@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Footer } from "../components/Footer";
+import { Footer } from "../components/footer";
 
 import logo from "@/assets/logo.png";
 

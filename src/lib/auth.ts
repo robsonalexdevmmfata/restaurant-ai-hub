@@ -17,6 +17,7 @@ export type Tenant = {
 
 export type RestaurantStaffMember = {
   id: string;
+  restaurantId?: string;
   email: string;
   password: string;
   name: string;
@@ -191,6 +192,27 @@ export function getTenant(): Tenant | null {
 export function setSession(user: Tenant) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(KEY, JSON.stringify({ user }));
+  window.dispatchEvent(new Event("restaurantai:session"));
+}
+
+export function updateProfile(input: Pick<Tenant, "name" | "avatar">) {
+  const current = getTenant();
+  if (!current) throw new Error("Entre novamente para editar seu perfil.");
+  const name = input.name.trim();
+  if (!name) throw new Error("Informe seu nome.");
+  const next = { ...current, name, avatar: input.avatar };
+  window.localStorage.setItem(`restaurantai.profile.${current.email}`, JSON.stringify(input));
+  setSession(next);
+  return next;
+}
+
+function restoreProfile(tenant: Tenant): Tenant {
+  try {
+    const raw = window.localStorage.getItem(`restaurantai.profile.${tenant.email}`);
+    if (!raw) return tenant;
+    const profile = JSON.parse(raw) as Pick<Tenant, "name" | "avatar">;
+    return { ...tenant, name: profile.name || tenant.name, avatar: profile.avatar || tenant.avatar };
+  } catch { return tenant; }
 }
 
 export function signIn(email: string, password?: string): Tenant {
@@ -222,8 +244,10 @@ export function signIn(email: string, password?: string): Tenant {
     avatar: account.avatar,
   };
 
-  setSession(tenant);
-  return tenant;
+  const user = restoreProfile(tenant);
+  clearToken();
+  setSession(user);
+  return user;
 }
 
 export function signInAs(role: AppRole): Tenant {
@@ -240,14 +264,17 @@ export function signInAs(role: AppRole): Tenant {
     avatar: account.avatar,
   };
 
-  setSession(tenant);
-  return tenant;
+  const user = restoreProfile(tenant);
+  clearToken();
+  setSession(user);
+  return user;
 }
 
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(KEY);
   clearToken();
+  window.dispatchEvent(new Event("restaurantai:session"));
 }
 
 export function canAccessRole(user: Tenant | null, requiredRoles: AppRole | AppRole[]) {
@@ -261,8 +288,16 @@ export function useSession() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setSessionState(getSession());
+    const refresh = () => setSessionState(getSession());
+    refresh();
     setLoading(false);
+    window.addEventListener("restaurantai:session", refresh);
+    const onStorage = (event: StorageEvent) => { if (event.key === KEY) refresh(); };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("restaurantai:session", refresh);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   return { session, user: session?.user ?? null, loading };

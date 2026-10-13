@@ -25,7 +25,7 @@ export async function notifyCustomerOrderStatus(
   const phone = order.customerPhone?.replace(/\s/g, "") ?? "";
   if (phone.length < 8) return { status: "missing-phone", message };
 
-  const proxyUrl = import.meta.env.VITE_EVOLUTION_NOTIFICATION_PROXY_URL;
+  const proxyUrl = import.meta.env["VITE_EVOLUTION_NOTIFICATION_PROXY_URL"];
   if (!proxyUrl) return { status: "simulated", message };
 
   try {
@@ -82,7 +82,7 @@ export async function dispatchAbandonedCartCouponReminder(
   let status: "sent" | "simulated" | "failed" | "missing-phone" = "simulated";
   if (phone.length < 8) status = "missing-phone";
   else {
-    const proxyUrl = import.meta.env.VITE_EVOLUTION_NOTIFICATION_PROXY_URL;
+    const proxyUrl = import.meta.env["VITE_EVOLUTION_NOTIFICATION_PROXY_URL"];
     if (proxyUrl) {
       try {
         const response = await fetch(proxyUrl, {

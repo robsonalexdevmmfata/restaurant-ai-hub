@@ -107,6 +107,7 @@ function Dashboard() {
   const unitemizedSales = Math.max(0, operations.revenue - detailedSales);
 
   function exportDailyCsv() {
+    if (!tenant) return;
     const rows = [
       ["Data", "Restaurante", "Pedido", "Cliente", "Pagamento", "Bruto", "Desconto", "Total"],
       ...paidOrders.map((order) => {
@@ -135,6 +136,7 @@ function Dashboard() {
   }
 
   function exportDailyPdf() {
+    if (!tenant) return;
     const printed = printThermalReceipt({
       kind: "summary",
       restaurant: tenant.restaurant,

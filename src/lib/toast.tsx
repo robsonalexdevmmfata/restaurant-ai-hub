@@ -5,7 +5,7 @@ export type ToastVariant = "success" | "info" | "warning" | "error";
 export type ToastMessage = {
   id: number;
   title: string;
-  description?: string;
+  description?: string | undefined;
   variant: ToastVariant;
 };
 

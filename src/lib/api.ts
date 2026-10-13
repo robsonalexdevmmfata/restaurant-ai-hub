@@ -66,7 +66,7 @@ export type ApiUser = {
   email: string;
   role: string;
   isActive: boolean;
-  createdAt?: string;
+  createdAt?: string | undefined;
 };
 
 export type ApiRestaurant = {
@@ -94,7 +94,7 @@ export type ApiMenu = {
   aiInstructions: string | null;
   isActive: boolean;
   createdAt: string;
-  productCount?: number;
+  productCount?: number | undefined;
 };
 
 export type ApiProduct = {
@@ -109,12 +109,12 @@ export type ApiProduct = {
 };
 
 export type ProductPayload = {
-  menuId?: number;
+  menuId?: number | undefined;
   name: string;
-  description?: string;
+  description?: string | undefined;
   price: number;
-  category?: string;
-  status?: "DISPONIVEL" | "INDISPONIVEL";
+  category?: string | undefined;
+  status?: "DISPONIVEL" | "INDISPONIVEL" | undefined;
 };
 
 export type ApiTable = {
@@ -133,7 +133,7 @@ export type ApiOrderItem = {
   name: string;
   price: number;
   quantity: number;
-  notes?: string;
+  notes?: string | undefined;
 };
 
 export type ApiOrder = {
@@ -191,14 +191,14 @@ export const api = {
     restaurantName: string;
     email: string;
     password: string;
-    ownerName?: string;
-    phone?: string;
-    whatsapp?: string;
-    kind?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    whatsappInstance?: string;
+    ownerName?: string | undefined;
+    phone?: string | undefined;
+    whatsapp?: string | undefined;
+    kind?: string | undefined;
+    address?: string | undefined;
+    city?: string | undefined;
+    state?: string | undefined;
+    whatsappInstance?: string | undefined;
   }) =>
     request<AuthResponse>("/auth/register", {
       method: "POST",
@@ -296,10 +296,10 @@ export const api = {
   publicOrder: (
     slug: string,
     input: {
-      tableLabel?: string;
-      customerName?: string;
-      customerPhone?: string;
-      notes?: string;
+      tableLabel?: string | undefined;
+      customerName?: string | undefined;
+      customerPhone?: string | undefined;
+      notes?: string | undefined;
       items: ApiOrderItem[];
     },
   ) =>

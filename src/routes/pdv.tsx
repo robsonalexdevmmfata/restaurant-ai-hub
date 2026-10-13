@@ -66,6 +66,7 @@ function CounterPdv() {
       return;
     }
 
+    if (!tenant) return;
     const orderId = `PDV-${Date.now().toString().slice(-7)}`;
     const saleTotal = subtotal;
     const saleLines = cart.map((line) => ({ ...line }));
