@@ -15,7 +15,9 @@ import { useRequireTenant } from "@/lib/use-require-tenant";
 
 type SaleLine = { product: MenuItem; quantity: number };
 
-export const Route = createFileRoute("/pdv")({ component: CounterPdv });
+export const Route = createFileRoute("/pdv")({
+  head: () => ({ meta: [{ title: "PDV do restaurante — RestauranteAI" }, { name: "description", content: "RestauranteAI — pdv do restaurante." }, { property: "og:title", content: "PDV do restaurante — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — pdv do restaurante." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: CounterPdv });
 
 function CounterPdv() {
   const { tenant, loading } = useRequireTenant(["caixa", "owner"]);

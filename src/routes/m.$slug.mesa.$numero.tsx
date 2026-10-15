@@ -36,7 +36,9 @@ type PublicRestaurantPresentation = {
   publicPolicy: string | null;
 };
 
-export const Route = createFileRoute("/m/$slug/mesa/$numero")({ component: PublicTableMenu });
+export const Route = createFileRoute("/m/$slug/mesa/$numero")({
+  head: () => ({ meta: [{ title: "Cardápio da mesa — RestauranteAI" }, { name: "description", content: "RestauranteAI — cardápio da mesa." }, { property: "og:title", content: "Cardápio da mesa — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — cardápio da mesa." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: PublicTableMenu });
 
 function PublicTableMenu() {
   const { slug, numero } = Route.useParams();
@@ -460,7 +462,7 @@ function PublicTableMenu() {
                   <article key={order.id} className="rounded-md bg-stone-50 p-3">
                     <div className="flex items-center justify-between gap-2"><h3 className="text-[12px] font-semibold">Pedido #{order.id}</h3><span className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-stone-600">{order.status === "PENDENTE" ? "Recebido" : order.status === "PREPARANDO" ? "Em preparo" : order.status === "ENTREGUE" ? "Pronto" : order.status === "SAIU_PARA_ENTREGA" ? "A caminho" : order.status === "FINALIZADO" ? "Finalizado" : order.status === "CANCELADO" ? "Cancelado" : order.status}</span></div>
                     <p className="mt-2 text-[11px] leading-relaxed text-stone-600">{order.itemsJson?.map((item) => `${item.quantity}x ${item.name}${item.notes ? ` (${item.notes})` : ""}`).join(" · ") ?? "Itens do pedido"}</p>
-                    <div className="mt-2 flex justify-between text-[10px] text-stone-500"><span>{new Date(order.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{order.paymentMethod ? ` · ${order.paymentMethod}` : ""}</span><span className="font-semibold text-ink">{brl(order.total)}</span></div>
+                    <div className="mt-2 flex justify-between text-[10px] text-stone-500"><span>{new Date(order.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{order.paymentMethod ? ` · ${order.paymentMethod}` : ""}</span><span className="font-semibold text-ink">{brl(Number(order.total))}</span></div>
                   </article>
                 )) : <p className="rounded-md bg-stone-50 p-3 text-[11px] text-stone-500">Ainda não há pedidos registrados nesta comanda.</p>}
               </div>

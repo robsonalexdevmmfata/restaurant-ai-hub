@@ -16,7 +16,9 @@ const localInputDate = (date: Date) => {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 };
 
-export const Route = createFileRoute("/promocoes")({ component: Promotions });
+export const Route = createFileRoute("/promocoes")({
+  head: () => ({ meta: [{ title: "Promoções e cupons — RestauranteAI" }, { name: "description", content: "RestauranteAI — promoções e cupons." }, { property: "og:title", content: "Promoções e cupons — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — promoções e cupons." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: Promotions });
 
 function Promotions() {
   const { tenant, loading } = useRequireTenant("owner");

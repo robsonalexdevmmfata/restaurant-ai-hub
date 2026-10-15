@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/app-shell";
 import { useTenantOperations, updateTenantOperations } from "@/lib/operations";
 
-export const Route = createFileRoute("/pedido/$slug/$token")({ component: PublicOrderTracking });
+export const Route = createFileRoute("/pedido/$slug/$token")({
+  head: () => ({ meta: [{ title: "Acompanhar entrega — RestauranteAI" }, { name: "description", content: "RestauranteAI — acompanhar entrega." }, { property: "og:title", content: "Acompanhar entrega — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — acompanhar entrega." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: PublicOrderTracking });
 
 function PublicOrderTracking() {
   const { slug, token } = Route.useParams();

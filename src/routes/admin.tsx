@@ -20,6 +20,8 @@ import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
 export const Route = createFileRoute("/admin")({
+  head: () => ({ meta: [{ title: "Administração do SaaS — RestauranteAI" }, { name: "description", content: "RestauranteAI — administração do saas." }, { property: "og:title", content: "Administração do SaaS — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — administração do saas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: AdminView,
 });
 

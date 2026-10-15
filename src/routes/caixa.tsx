@@ -13,6 +13,8 @@ import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
 export const Route = createFileRoute("/caixa")({
+  head: () => ({ meta: [{ title: "Caixa e pagamentos — RestauranteAI" }, { name: "description", content: "RestauranteAI — caixa e pagamentos." }, { property: "og:title", content: "Caixa e pagamentos — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — caixa e pagamentos." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: CashierView,
 });
 

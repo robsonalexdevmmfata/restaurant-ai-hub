@@ -13,6 +13,8 @@ import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
 export const Route = createFileRoute("/motoboy")({
+  head: () => ({ meta: [{ title: "Entregas do motoboy — RestauranteAI" }, { name: "description", content: "RestauranteAI — entregas do motoboy." }, { property: "og:title", content: "Entregas do motoboy — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — entregas do motoboy." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: DeliveryView,
 });
 
@@ -566,7 +568,7 @@ function DeliveryView() {
               <div key={`${entry.orderId}-${entry.deliveredAt}`} className="grid gap-1.5 px-4 py-3 text-[12px] sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:gap-4">
                 <span className="font-medium">Pedido #{entry.orderId} · {entry.customerName ?? "Cliente"}</span>
                 <span className="text-stone-500">{entry.deliveryNeighborhood ?? "Bairro não informado"} · {entry.driverName ?? "Entregador"} · {entry.deliveredAt ? new Date(entry.deliveredAt).toLocaleString("pt-BR") : "Horário indisponível"}</span>
-                <span className="font-semibold sm:text-right">Pedido {brl(entry.total)}</span>
+                <span className="font-semibold sm:text-right">Pedido {brl(Number(entry.total))}</span>
               </div>
             ))}
           </div>

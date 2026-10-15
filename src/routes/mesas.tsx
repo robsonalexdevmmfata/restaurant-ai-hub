@@ -52,6 +52,8 @@ function QrPreview({ url, label }: { url: string; label: string }) {
 }
 
 export const Route = createFileRoute("/mesas")({
+  head: () => ({ meta: [{ title: "Mesas e QR Codes — RestauranteAI" }, { name: "description", content: "RestauranteAI — mesas e qr codes." }, { property: "og:title", content: "Mesas e QR Codes — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — mesas e qr codes." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: TablesView,
 });
 

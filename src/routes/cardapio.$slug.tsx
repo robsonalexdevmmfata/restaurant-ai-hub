@@ -12,7 +12,9 @@ import { useTenantBranding } from "@/lib/tenant-branding";
 
 type DeliveryCartLine = { item: MenuItem; quantity: number };
 
-export const Route = createFileRoute("/cardapio/$slug")({ component: PublicMenu });
+export const Route = createFileRoute("/cardapio/$slug")({
+  head: () => ({ meta: [{ title: "Cardápio público da loja — RestauranteAI" }, { name: "description", content: "RestauranteAI — cardápio público da loja." }, { property: "og:title", content: "Cardápio público da loja — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — cardápio público da loja." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: PublicMenu });
 
 function PublicMenu() {
   const { slug } = Route.useParams();
