@@ -1,6 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  ExternalLink,
   LayoutPanelLeft,
   MessageSquare,
   UtensilsCrossed,
@@ -17,6 +16,7 @@ import {
   TableProperties,
   Palette,
   TicketPercent,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
