@@ -7,6 +7,10 @@ import { DEMO_ACCOUNTS, getDefaultRouteForRole, getSession, signIn, signInAs } f
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
+      { property: "og:title", content: "Entrar — RestauranteAI" },
+      { property: "og:description", content: "Entre no painel do seu restaurante." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Entrar · RestaurantAI" },
       { name: "description", content: "Entre no painel do seu restaurante com seu usuário e senha." },
     ],
@@ -145,7 +149,7 @@ function Login() {
                   onClick={() => {
                     setEmail(account.email);
                     setPassword(account.password);
-                    const user = signInAs(account.role);
+                    const user = signIn(account.email, account.password);
                     navigate({ to: getDefaultRouteForRole(user.role), replace: true });
                   }}
                   className="flex items-center justify-between rounded-xl border border-black/5 bg-white px-3 py-2 text-left text-sm transition hover:bg-stone-50"

@@ -8,6 +8,10 @@ import logo from "@/assets/logo.png";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { property: "og:title", content: "RestauranteAI | Automação para restaurantes" },
+      { property: "og:description", content: "Atendimento, cardápio e gestão de restaurantes com RestauranteAI." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "RestaurantAI | Automação com IA para restaurantes" },
       {
         name: "description",

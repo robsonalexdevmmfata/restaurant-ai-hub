@@ -1,4 +1,5 @@
 # Current work
+- [ ] Give the public menu a store profile, cover/logo and separate promotion/coupon carousels.
 - [ ] Restore the preview by resolving existing conflicts and errors.
 - [ ] Add shared profile/photo and logout controls for every dashboard.
 - [ ] Improve public menu presentation, shopping and correct restaurant links.

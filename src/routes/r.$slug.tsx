@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { MenuHighlights } from "@/components/menu-highlights";
 
 import logo from "@/assets/logo.png";
-import { Check, ChevronLeft, ChevronRight, Clock3, LoaderCircle, MapPin, Minus, Plus, Search, ShoppingBag, X, XCircle } from "lucide-react";
+import { Check, Clock3, LoaderCircle, MapPin, Minus, Plus, Search, ShoppingBag, X, XCircle } from "lucide-react";
 import { Btn, inputCls, useLoad } from "@/components/kit";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CartSummary, cartItems, cartTotal, changeQty, ProductPicker, type Cart } from "@/components/order-builder";
@@ -11,9 +12,9 @@ import { data } from "@/lib/data";
 
 export const Route = createFileRoute("/r/$slug")({
   validateSearch: (s: Record<string, unknown>) => ({
-    mesa: typeof s.mesa === "string" ? s.mesa : undefined,
-    menu: typeof s.menu === "string" ? s.menu : undefined,
-    pedido: typeof s.pedido === "string" ? s.pedido : undefined,
+    mesa: typeof s['mesa'] === "string" ? s['mesa'] : undefined,
+    menu: typeof s['menu'] === "string" ? s['menu'] : undefined,
+    pedido: typeof s['pedido'] === "string" ? s['pedido'] : undefined,
   }),
   head: () => ({
     meta: [
@@ -48,9 +49,7 @@ function PublicMenu() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
-  const [activePromotion, setActivePromotion] = useState(0);
   const faviconUrl = res.data?.restaurant.faviconUrl;
-  const promotionCount = res.data?.promotions?.length ?? 0;
 
   useEffect(() => {
     if (!faviconUrl) return;
@@ -69,23 +68,15 @@ function PublicMenu() {
     };
   }, [faviconUrl]);
 
-  useEffect(() => {
-    if (promotionCount < 2) return;
-    const timer = window.setInterval(() => {
-      setActivePromotion((current) => (current + 1) % promotionCount);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [promotionCount]);
-
   async function send() {
     setSubmitting(true);
     setErr("");
     try {
       const result = await data.publicOrder(slug, {
-        tableLabel: mesa,
-        customerName: name || undefined,
-        customerPhone: customerPhone.trim() || undefined,
-        notes: notes || undefined,
+        ...(mesa ? { tableLabel: mesa } : {}),
+        ...(name ? { customerName: name } : {}),
+        ...(customerPhone.trim() ? { customerPhone: customerPhone.trim() } : {}),
+        ...(notes ? { notes } : {}),
         items: cartItems(cart),
       });
       setCart({});
@@ -125,9 +116,9 @@ function PublicMenu() {
 
   if (res.error) return <div className="grid min-h-screen place-items-center bg-stone-100 p-6 text-center text-[14px] text-stone-600">{res.error}</div>;
   if (!res.data) return <div className="min-h-screen bg-stone-100" />;
-  const r = res.data.restaurant;
+  const loadedMenu = res.data;
+  const r = loadedMenu.restaurant;
   const promotions = res.data.promotions ?? [];
-  const currentPromotion = promotions.length ? promotions[activePromotion % promotions.length] : null;
   const count = cartItems(cart).reduce((a, i) => a + i.quantity, 0);
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
   const visibleProducts = res.data.products.filter((product) =>
@@ -138,7 +129,7 @@ function PublicMenu() {
   );
   const containsDrink = cartItems(cart).some((item) =>
     /bebid|suco|refriger|água|agua|drink/i.test(
-      res.data.products.find((product) => product.id === item.productId)?.category ?? "",
+      loadedMenu.products.find((product) => product.id === item.productId)?.category ?? "",
     ),
   );
   const recommendations = containsDrink
@@ -161,39 +152,38 @@ function PublicMenu() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f7f4] pb-28 font-sans text-ink">
-      <header className="relative overflow-hidden bg-ink text-stone-300">
-        {r.coverUrl ? <img src={apiAssetUrl(r.coverUrl)} alt="" className="absolute inset-0 size-full object-cover opacity-30" /> : null}
-        {r.coverUrl ? <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/90 to-ink/35" /> : null}
-        <div className="pointer-events-none absolute -right-20 -top-32 size-96 rounded-full bg-brand/20 blur-3xl" />
-        <div className="relative mx-auto flex max-w-6xl items-center gap-5 px-5 py-8 sm:px-8 sm:py-12">
+    <div className="public-store min-h-screen bg-menu-surface pb-28 font-sans text-foreground" style={{ "--menu-brand": r.primaryColor } as CSSProperties}>
+      <header className="border-b border-border bg-card">
+        <div className="relative h-44 overflow-hidden bg-muted sm:h-64">
+          {r.coverUrl ? <img src={apiAssetUrl(r.coverUrl)} alt={`Capa de ${r.name}`} className="size-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><ShoppingBag className="size-12" /></div>}
+        </div>
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-start gap-4 px-5 pb-6 sm:gap-6 sm:px-8">
           <img
             src={apiAssetUrl(r.logoUrl) || logo}
             alt={`${r.name} logo`}
             onError={(event) => { event.currentTarget.src = logo; }}
-            className="size-16 shrink-0 rounded-2xl border border-white/10 bg-white/10 object-cover shadow-lg sm:size-20"
+            className="-mt-7 size-24 shrink-0 rounded-lg border-4 border-card bg-card object-contain sm:-mt-9 sm:size-28"
           />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Cardápio digital</p>
-            <h1 className="mt-1 truncate font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{r.name}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-stone-300">
+          <div className="min-w-0 flex-1 pt-4">
+            <h1 className="break-words font-display text-2xl font-semibold sm:text-3xl">{r.name}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
               {r.description ?? res.data.menu?.name ?? "Peça seus favoritos direto por aqui."}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
               {mesa ? (
-                <span className="rounded-full bg-brand px-3 py-1.5 font-semibold text-white">{mesa}</span>
+                <span className="menu-soft rounded-md px-3 py-1.5 font-semibold text-menu-brand">{mesa}</span>
               ) : null}
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${r.isOpen ? "bg-white/10 text-white" : "bg-red-500/20 text-red-200"}`}>
-                <span className={`size-1.5 rounded-full ${r.isOpen ? "bg-emerald-400" : "bg-red-400"}`} />
+              <span className={`inline-flex items-center gap-1.5 font-semibold ${r.isOpen ? "text-menu-brand" : "text-destructive"}`}>
+                <span className="size-1.5 rounded-full bg-current" />
                 {r.isOpen ? "Aberto agora" : "Fechado"}
               </span>
               {r.openingHours ? (
-                <span className="inline-flex items-center gap-1.5 text-stone-400">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                   <Clock3 className="size-3.5" /> {r.openingHours}
                 </span>
               ) : null}
               {r.address ? (
-                <span className="inline-flex items-center gap-1.5 text-stone-400">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                   <MapPin className="size-3.5" /> {r.city ?? r.address}
                 </span>
               ) : null}
@@ -201,28 +191,7 @@ function PublicMenu() {
           </div>
         </div>
       </header>
-      {currentPromotion ? (
-        <section aria-label="Promoções do restaurante" className="mx-auto mt-5 max-w-6xl px-4 sm:px-8">
-          <div className="relative isolate overflow-hidden rounded-2xl bg-stone-900 shadow-lg">
-            <img src={apiAssetUrl(currentPromotion.imageUrl)} alt={currentPromotion.title ?? "Promoção do restaurante"} className="absolute inset-0 -z-20 size-full object-cover" />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
-            <div className="flex min-h-40 items-center justify-between gap-3 px-5 py-6 text-white sm:min-h-52 sm:px-10">
-              <div className="max-w-xl">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200">Destaques da casa</p>
-                <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">{currentPromotion.title}</h2>
-                {currentPromotion.description ? <p className="mt-2 text-sm text-white/85">{currentPromotion.description}</p> : null}
-              </div>
-              {promotions.length > 1 ? (
-                <div className="flex shrink-0 gap-2">
-                  <button type="button" aria-label="Promoção anterior" onClick={() => setActivePromotion((current) => (current - 1 + promotions.length) % promotions.length)} className="grid size-9 place-items-center rounded-full bg-white/20 backdrop-blur hover:bg-white/30"><ChevronLeft className="size-5" /></button>
-                  <button type="button" aria-label="Próxima promoção" onClick={() => setActivePromotion((current) => (current + 1) % promotions.length)} className="grid size-9 place-items-center rounded-full bg-white/20 backdrop-blur hover:bg-white/30"><ChevronRight className="size-5" /></button>
-                </div>
-              ) : null}
-            </div>
-            {promotions.length > 1 ? <div className="absolute bottom-3 left-5 flex gap-1.5 sm:left-10">{promotions.map((promotion, index) => <button key={promotion.id} type="button" aria-label={`Mostrar promoção ${index + 1}`} onClick={() => setActivePromotion(index)} className={`h-1.5 rounded-full transition-all ${index === activePromotion % promotions.length ? "w-7 bg-white" : "w-2 bg-white/50"}`} />)}</div> : null}
-          </div>
-        </section>
-      ) : null}
+      <div className="mx-auto max-w-6xl px-4 sm:px-8"><MenuHighlights slug={slug} promotions={promotions} /></div>
       <main className="mx-auto max-w-6xl px-4 py-7 sm:px-8 sm:py-10">
         {done ? (
           <div role="status" className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
@@ -455,7 +424,7 @@ function OrderTracking({
                 {step.active ? <Check className="size-4" /> : <span className="size-2 rounded-full bg-current" />}
               </span>
               <span className={`text-xs font-medium ${step.active ? "text-stone-800" : "text-stone-400"}`}>{step.label}</span>
-              {index < steps.length - 1 ? <span className={`absolute left-[calc(50%+24px)] top-4 h-0.5 w-[calc(100%-48px)] ${steps[index + 1].active ? "bg-emerald-300" : "bg-stone-100"}`} /> : null}
+              {index < steps.length - 1 ? <span className={`absolute left-[calc(50%+24px)] top-4 h-0.5 w-[calc(100%-48px)] ${steps[index + 1]?.active ? "bg-emerald-300" : "bg-stone-100"}`} /> : null}
             </li>
           ))}
         </ol>

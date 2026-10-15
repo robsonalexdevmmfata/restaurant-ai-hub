@@ -116,7 +116,7 @@ function makeOrder(
 ): ApiOrder & { trackingToken: string } {
   const total = input.items.reduce((s, i) => s + i.price * i.quantity, 0);
   const session = input.tableId ? openSession(d, input.tableId) : null;
-  const order: ApiOrder = {
+  const order: ApiOrder & { trackingToken: string } = {
     id: nextId(d),
     tableId: input.tableId ?? null,
     sessionId: session?.id ?? null,
@@ -320,7 +320,10 @@ export const data = {
           notes: input.notes,
           items: input.items,
         });
-        return r.order;
+        const orders = await api.listOrders();
+        const order = orders.find((entry) => entry.id === r.id);
+        if (!order) throw new Error("Pedido registrado, mas não foi possível carregar seus detalhes. Atualize a lista de pedidos.");
+        return order;
       } catch (e) {
         if (!(e instanceof ApiError && e.status === 0)) throw e;
       }
@@ -341,6 +344,7 @@ export const data = {
             tableId: s.tableId,
             tableLabel: d.tables.find((t) => t.id === s.tableId)?.label ?? "Mesa",
             openedAt: s.openedAt,
+            closeRequestedAt: null,
             total: orders.reduce((a, o) => a + Number(o.total), 0),
             orders,
           };
@@ -454,12 +458,9 @@ export const data = {
     const order = d.orders.find((candidate) => candidate.trackingToken === trackingToken);
     if (!order) throw new Error("Não foi possível localizar este pedido.");
     return {
-      id: order.id,
       status: order.status,
       total: order.total,
       createdAt: order.createdAt,
-      restaurantName: d.restaurant.name,
-      tableLabel: d.tables.find((table) => table.id === order.tableId)?.label ?? null,
     };
   },
 };
@@ -468,6 +469,8 @@ export const statusLabel: Record<ApiOrder["status"], string> = {
   PENDENTE: "Novo",
   PREPARANDO: "Preparando",
   ENTREGUE: "Entregue",
+  SAIU_PARA_ENTREGA: "Saiu para entrega",
+  FINALIZADO: "Finalizado",
   CANCELADO: "Cancelado",
 };
 

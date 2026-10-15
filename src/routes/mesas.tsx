@@ -52,6 +52,8 @@ function QrPreview({ url, label }: { url: string; label: string }) {
 }
 
 export const Route = createFileRoute("/mesas")({
+  head: () => ({ meta: [{ title: "Mesas e QR Codes — RestauranteAI" }, { name: "description", content: "RestauranteAI — mesas e qr codes." }, { property: "og:title", content: "Mesas e QR Codes — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — mesas e qr codes." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: TablesView,
 });
 
@@ -134,12 +136,13 @@ function TablesView() {
 
   function tableMenuUrl(tableId: number) {
     const tableLabel = `Mesa ${tableId}`;
-    const appUrl = import.meta.env.VITE_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    const appUrl = import.meta.env['VITE_PUBLIC_APP_URL']?.replace(/\/$/, "") ||
       (typeof window === "undefined" ? "" : window.location.origin);
     return `${appUrl}/r/${encodeURIComponent(tenant?.restaurantSlug ?? slug)}?mesa=${encodeURIComponent(tableLabel)}`;
   }
 
   function printQr(tableId: number) {
+    if (!tenant) return;
     const destination = tableMenuUrl(tableId);
     const qr = qrImageUrl(destination);
     const popup = window.open("", "_blank", "width=640,height=820");

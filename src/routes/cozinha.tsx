@@ -16,6 +16,8 @@ import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
 export const Route = createFileRoute("/cozinha")({
+  head: () => ({ meta: [{ title: "Pedidos da cozinha — RestauranteAI" }, { name: "description", content: "RestauranteAI — pedidos da cozinha." }, { property: "og:title", content: "Pedidos da cozinha — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — pedidos da cozinha." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+
   component: KitchenView,
 });
 

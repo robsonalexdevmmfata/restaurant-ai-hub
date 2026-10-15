@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep public-menu promotion and coupon carousels in a shared browser-safe component using Embla, so touch and arrow navigation share one implementation.

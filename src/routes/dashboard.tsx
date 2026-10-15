@@ -168,7 +168,7 @@ function Dashboard() {
       await data.createUser(form);
       await teamLoad.reload();
       setForm({ name: "", email: "", password: "", role: "cozinha" });
-      showToast({ title: "Acesso criado", description: `O login foi vinculado à equipe de ${tenant.restaurant}.`, variant: "success" });
+      showToast({ title: "Acesso criado", description: `O login foi vinculado à equipe de ${tenant?.restaurant ?? "seu restaurante"}.`, variant: "success" });
     } catch (error) {
       showToast({ title: "Não foi possível criar o acesso", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
     } finally {

@@ -151,7 +151,7 @@ export function AppShell({
             {tenant.restaurant}
           </div>
           <Link
-            to="/cardapio/$slug"
+            to="/r/$slug"
             params={{ slug: tenant.restaurantSlug }}
             target="_blank"
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium hover:bg-white/5"

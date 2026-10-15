@@ -9,7 +9,9 @@ import { useTenantBranding } from "@/lib/tenant-branding";
 import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
-export const Route = createFileRoute("/personalizacao")({ component: RestaurantBranding });
+export const Route = createFileRoute("/personalizacao")({
+  head: () => ({ meta: [{ title: "Personalização da loja — RestauranteAI" }, { name: "description", content: "RestauranteAI — personalização da loja." }, { property: "og:title", content: "Personalização da loja — RestauranteAI" }, { property: "og:description", content: "RestauranteAI — personalização da loja." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+ component: RestaurantBranding });
 
 function RestaurantBranding() {
   const { tenant, loading } = useRequireTenant("owner");
@@ -58,7 +60,7 @@ function RestaurantBranding() {
   if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const publicUrl = `${origin}/cardapio/${tenant.restaurantSlug}`;
+  const publicUrl = `${origin}/r/${tenant.restaurantSlug}`;
 
   async function readBrandImage(event: React.ChangeEvent<HTMLInputElement>, kind: "logo" | "favicon" | "cover") {
     const file = event.target.files?.[0];

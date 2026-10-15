@@ -32,7 +32,7 @@ function DeliveryPage() {
   async function save() {
     const items = cartItems(cart);
     if (!items.length || !f.name) return;
-    await data.createOrder({ source: "delivery", customerName: f.name, customerPhone: f.phone, notes: f.address ? `Entrega: ${f.address}` : undefined, items });
+    await data.createOrder({ source: "delivery", customerName: f.name, customerPhone: f.phone, notes: f.address ? `Entrega: ${f.address}` : "", items });
     setOpen(false); setCart({}); setF({ name: "", phone: "", address: "" });
     orders.reload();
   }
