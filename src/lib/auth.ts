@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { clearToken } from "./api";
+import { api, ApiError, clearToken, setToken } from "./api";
 
-export type AppRole = "super_admin" | "owner" | "cozinha" | "caixa" | "motoboy";
+export type AppRole = "super_admin" | "owner" | "gerente" | "atendente" | "cozinha" | "caixa" | "motoboy";
 
 export type Tenant = {
   id: string;
@@ -33,10 +33,11 @@ export type AuthSession = {
 };
 
 const KEY = "restauranteai.session";
-const STAFF_KEY = "restauranteai.staff";
+
+type DemoRole = "super_admin" | "owner" | "cozinha" | "caixa" | "motoboy";
 
 export const DEMO_ACCOUNTS: Record<
-  AppRole,
+  DemoRole,
   {
     email: string;
     password: string;
@@ -111,7 +112,10 @@ export function getDefaultRouteForRole(role: AppRole) {
     case "super_admin":
       return "/admin";
     case "owner":
+    case "gerente":
       return "/dashboard";
+    case "atendente":
+      return "/conversas";
     case "cozinha":
       return "/cozinha";
     case "caixa":
@@ -121,57 +125,6 @@ export function getDefaultRouteForRole(role: AppRole) {
     default:
       return "/login";
   }
-}
-
-export function getRestaurantStaffMap(): Record<string, RestaurantStaffMember[]> {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem(STAFF_KEY);
-    const parsed = raw ? (JSON.parse(raw) as Record<string, RestaurantStaffMember[]>) : {};
-    return parsed ?? {};
-  } catch {
-    return {};
-  }
-}
-
-export function getRestaurantStaff(slug: string): RestaurantStaffMember[] {
-  return getRestaurantStaffMap()[slug] ?? [];
-}
-
-export function createRestaurantStaffAccount(input: {
-  name: string;
-  email: string;
-  password: string;
-  role: Exclude<AppRole, "super_admin" | "owner">;
-  restaurant: string;
-  restaurantSlug: string;
-  owner: string;
-}) {
-  if (typeof window === "undefined") return null;
-
-  const map = getRestaurantStaffMap();
-  const current = map[input.restaurantSlug] ?? [];
-  const member: RestaurantStaffMember = {
-    id: `${input.restaurantSlug}-${Date.now()}`,
-    email: input.email.trim().toLowerCase(),
-    password: input.password.trim(),
-    name: input.name.trim(),
-    role: input.role,
-    restaurant: input.restaurant,
-    restaurantSlug: input.restaurantSlug,
-    owner: input.owner,
-    avatar:
-      input.role === "cozinha"
-        ? "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=500&q=80"
-        : input.role === "caixa"
-          ? "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80"
-          : "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=500&q=80",
-  };
-
-  map[input.restaurantSlug] = [...current, member];
-  window.localStorage.setItem(STAFF_KEY, JSON.stringify(map));
-  return member;
 }
 
 export function getSession(): AuthSession | null {
@@ -215,12 +168,23 @@ function restoreProfile(tenant: Tenant): Tenant {
   } catch { return tenant; }
 }
 
-export function signIn(email: string, password?: string): Tenant {
-  const normalizedEmail = email.trim().toLowerCase();
-  const normalizedPassword = password?.trim();
+function normalizeApiRole(role: string): AppRole {
+  if (
+    role === "super_admin" ||
+    role === "owner" ||
+    role === "gerente" ||
+    role === "atendente" ||
+    role === "cozinha" ||
+    role === "caixa" ||
+    role === "motoboy"
+  ) return role;
+  throw new Error("Este perfil ainda não possui uma área de acesso configurada.");
+}
 
-  const customAccounts = Object.values(getRestaurantStaffMap()).flat();
-  const accountCandidates = [...Object.values(DEMO_ACCOUNTS), ...customAccounts];
+function signInDemo(email: string, password: string): Tenant {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
+  const accountCandidates = Object.values(DEMO_ACCOUNTS);
 
   const account = accountCandidates.find((candidate) => {
     const sameEmail = candidate.email.toLowerCase() === normalizedEmail;
@@ -250,7 +214,33 @@ export function signIn(email: string, password?: string): Tenant {
   return user;
 }
 
-export function signInAs(role: AppRole): Tenant {
+export async function signIn(email: string, password: string): Promise<Tenant> {
+  try {
+    const response = await api.login(email.trim().toLowerCase(), password);
+    const role = normalizeApiRole(response.user.role);
+    setToken(response.token);
+    const tenant: Tenant = {
+      id: String(response.user.id),
+      email: response.user.email,
+      restaurant: response.restaurant.name,
+      restaurantId: String(response.restaurant.id),
+      restaurantSlug: response.restaurant.slug,
+      owner: response.restaurant.name,
+      name: response.user.name ?? response.user.email,
+      role,
+      avatar: Object.values(DEMO_ACCOUNTS).find((account) => account.role === role)?.avatar ?? DEMO_ACCOUNTS.owner.avatar,
+    };
+    setSession(tenant);
+    return tenant;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 0) {
+      return signInDemo(email, password);
+    }
+    throw error;
+  }
+}
+
+export function signInAs(role: DemoRole): Tenant {
   const account = DEMO_ACCOUNTS[role];
   const tenant: Tenant = {
     id: account.restaurantId,

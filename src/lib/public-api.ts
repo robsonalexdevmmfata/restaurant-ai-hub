@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env["VITE_API_BASE_URL"]?.replace(/\/$/, "") ?? "";
+import { API_URL } from "./api";
+
+const API_BASE = API_URL;
 
 export function hasPublicApi() {
   return Boolean(API_BASE);

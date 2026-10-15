@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { restaurants } from "../../db/schema.js";
+import { restaurantImages, restaurants } from "../../db/schema.js";
 import * as menuService from "../menus/service.js";
 import * as productService from "../products/service.js";
 import type { UpdateRestaurantInput } from "./schemas.js";
@@ -68,8 +68,71 @@ export async function updateRestaurant(id: number, input: UpdateRestaurantInput)
       ...(input.name !== undefined && { name: input.name }),
       ...(input.whatsappInstance !== undefined && { whatsappInstance: input.whatsappInstance }),
       ...(input.aiInstructions !== undefined && { aiInstructions: input.aiInstructions }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.phone !== undefined && { phone: input.phone }),
+      ...(input.whatsapp !== undefined && { whatsapp: input.whatsapp }),
+      ...(input.address !== undefined && { address: input.address }),
+      ...(input.city !== undefined && { city: input.city }),
+      ...(input.state !== undefined && { state: input.state }),
+      ...(input.kind !== undefined && { kind: input.kind }),
+      ...(input.openingHours !== undefined && { openingHours: input.openingHours }),
+      ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
+      ...(input.webhookUrl !== undefined && { webhookUrl: input.webhookUrl }),
+      ...(input.publicPolicy !== undefined && { publicPolicy: input.publicPolicy }),
+      ...(input.primaryColor !== undefined && { primaryColor: input.primaryColor }),
+      ...(input.faviconUrl !== undefined && { faviconUrl: input.faviconUrl }),
+      ...(input.cnpj !== undefined && { cnpj: input.cnpj }),
     })
     .where(eq(restaurants.id, id))
     .returning();
   return row ?? null;
+}
+
+export async function saveRestaurantLogo(id: number, data: Buffer, mimeType: string) {
+  return db.transaction(async (tx) => {
+    const [restaurant] = await tx
+      .select({ slug: restaurants.slug })
+      .from(restaurants)
+      .where(eq(restaurants.id, id))
+      .limit(1);
+    if (!restaurant) return null;
+
+    await tx
+      .insert(restaurantImages)
+      .values({ restaurantId: id, mimeType, data })
+      .onConflictDoUpdate({
+        target: restaurantImages.restaurantId,
+        set: { mimeType, data, updatedAt: new Date() },
+      });
+
+    const logoUrl = `/public/restaurants/${restaurant.slug}/logo?v=${Date.now()}`;
+    const [updated] = await tx
+      .update(restaurants)
+      .set({ logoUrl })
+      .where(eq(restaurants.id, id))
+      .returning({ logoUrl: restaurants.logoUrl });
+    return updated ?? null;
+  });
+}
+
+export async function deleteRestaurantLogo(id: number) {
+  return db.transaction(async (tx) => {
+    const [restaurant] = await tx
+      .select({ logoUrl: restaurants.logoUrl })
+      .from(restaurants)
+      .where(eq(restaurants.id, id))
+      .limit(1);
+    if (!restaurant) return null;
+
+    await tx.delete(restaurantImages).where(eq(restaurantImages.restaurantId, id));
+    if (restaurant.logoUrl?.startsWith("/public/restaurants/")) {
+      const [updated] = await tx
+        .update(restaurants)
+        .set({ logoUrl: null })
+        .where(eq(restaurants.id, id))
+        .returning({ logoUrl: restaurants.logoUrl });
+      return updated ?? null;
+    }
+    return restaurant;
+  });
 }

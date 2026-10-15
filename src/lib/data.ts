@@ -1,6 +1,6 @@
 /**
- * Camada de dados do painel. Usa o backend real (src/lib/api.ts) quando há login real;
- * se o backend estiver offline (ou no modo demonstração), guarda tudo no navegador.
+ * Camada de dados do painel. Sessões reais usam exclusivamente o backend; dados locais
+ * são usados apenas quando não existe um token de autenticação (modo demonstração).
  */
 import {
   api,
@@ -11,6 +11,7 @@ import {
   type ApiOrder,
   type ApiOrderItem,
   type ApiProduct,
+  type ApiPublicOrderTracking,
   type ApiSession,
   type ApiTable,
   type ApiUser,
@@ -51,6 +52,7 @@ function seed(): Demo {
       description: m.description,
       price: m.price.toFixed(2),
       category: m.category,
+      imageUrl: m.imageUrl ?? null,
       status: m.available ? "DISPONIVEL" : "INDISPONIVEL",
     })),
     tables: [1, 2, 3, 4, 5, 6].map((n) => ({ id: n, label: `Mesa ${n}`, seats: 4, isActive: true })),
@@ -94,11 +96,7 @@ export function isDemo() {
 
 async function call<T>(real: () => Promise<T>, demo: () => T): Promise<T> {
   if (getToken()) {
-    try {
-      return await real();
-    } catch (e) {
-      if (!(e instanceof ApiError && e.status === 0)) throw e;
-    }
+    return real();
   }
   return demo();
 }
@@ -115,7 +113,7 @@ function openSession(d: Demo, tableId: number) {
 function makeOrder(
   d: Demo,
   input: { tableId?: number | null; source: string; customerName?: string; customerPhone?: string; notes?: string; items: ApiOrderItem[] },
-) {
+): ApiOrder & { trackingToken: string } {
   const total = input.items.reduce((s, i) => s + i.price * i.quantity, 0);
   const session = input.tableId ? openSession(d, input.tableId) : null;
   const order: ApiOrder = {
@@ -131,6 +129,7 @@ function makeOrder(
     notes: input.notes ?? null,
     status: "PENDENTE",
     createdAt: new Date().toISOString(),
+    trackingToken: globalThis.crypto.randomUUID(),
   };
   d.orders.unshift(order);
   return order;
@@ -206,6 +205,7 @@ export const data = {
             description: input.description ?? null,
             price: input.price.toFixed(2),
             category: input.category ?? null,
+            imageUrl: input.imageUrl ?? null,
             status: input.status ?? "DISPONIVEL",
           };
           d.products.push(p);
@@ -225,6 +225,8 @@ export const data = {
           return p;
         }),
     ),
+  uploadProductImage: (id: number, image: string) => api.uploadProductImage(id, image),
+  deleteProductImage: (id: number) => api.deleteProductImage(id),
   deleteProduct: (id: number) =>
     call(
       () => api.deleteProduct(id),
@@ -419,9 +421,10 @@ export const data = {
     const d = load();
     const menu = d.menus.find((m) => (menuSlug ? m.slug === menuSlug : m.isActive)) ?? d.menus[0] ?? null;
     return {
-      restaurant: { id: 1, name: d.restaurant.name, slug: d.restaurant.slug, description: "Pizzas artesanais no forno a lenha", phone: null, whatsapp: null, address: null, city: null, state: null, openingHours: "18h às 23h", isOpen: true },
+      restaurant: { id: 1, name: d.restaurant.name, slug: d.restaurant.slug, description: "Pizzas artesanais no forno a lenha", logoUrl: null, coverUrl: null, primaryColor: "#128c45", faviconUrl: null, publicPolicy: null, phone: null, whatsapp: null, address: null, city: null, state: null, openingHours: "18h às 23h", isOpen: true },
       menu: menu ? { id: menu.id, name: menu.name, slug: menu.slug } : null,
       products: d.products.filter((p) => p.menuId === menu?.id && p.status === "DISPONIVEL"),
+      promotions: [],
       tables: d.tables.filter((t) => t.isActive).map((t) => ({ id: t.id, label: t.label })),
     };
   },
@@ -430,14 +433,34 @@ export const data = {
     input: { tableLabel?: string; customerName?: string; customerPhone?: string; notes?: string; items: ApiOrderItem[] },
   ) => {
     try {
-      return (await api.publicOrder(slug, input)).order;
+      const result = await api.publicOrder(slug, input);
+      return { trackingToken: result.trackingToken };
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 0)) throw e;
     }
     return mutate((d) => {
       const table = d.tables.find((t) => t.label === input.tableLabel);
-      return makeOrder(d, { ...input, tableId: table?.id ?? null, source: table ? "qrcode" : "delivery" });
+      const order = makeOrder(d, { ...input, tableId: table?.id ?? null, source: table ? "qrcode" : "delivery" });
+      return { trackingToken: order.trackingToken };
     });
+  },
+  publicOrderStatus: async (trackingToken: string): Promise<ApiPublicOrderTracking> => {
+    try {
+      return await api.publicOrderStatus(trackingToken);
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 0)) throw e;
+    }
+    const d = load();
+    const order = d.orders.find((candidate) => candidate.trackingToken === trackingToken);
+    if (!order) throw new Error("Não foi possível localizar este pedido.");
+    return {
+      id: order.id,
+      status: order.status,
+      total: order.total,
+      createdAt: order.createdAt,
+      restaurantName: d.restaurant.name,
+      tableLabel: d.tables.find((table) => table.id === order.tableId)?.label ?? null,
+    };
   },
 };
 
@@ -449,6 +472,12 @@ export const statusLabel: Record<ApiOrder["status"], string> = {
 };
 
 export const roleLabel: Record<string, string> = {
+  owner: "Proprietário",
+  gerente: "Gerente",
+  atendente: "Atendimento",
+  cozinha: "Cozinha",
+  caixa: "Caixa",
+  motoboy: "Motoboy",
   OWNER: "Proprietário",
   ADMIN: "Administrador",
   GERENTE: "Gerente",

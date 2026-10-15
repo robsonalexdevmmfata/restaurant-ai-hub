@@ -19,51 +19,25 @@ export async function findUserById(id: number) {
   return row ?? null;
 }
 
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 export async function registerOwner(input: RegisterInput) {
   const passwordHash = await bcrypt.hash(input.password, 10);
-  const baseSlug = slugify(input.restaurantName) || `restaurante-${Date.now()}`;
-  const suffix = Math.random().toString(36).slice(2, 6);
+  const baseSlug = toRestaurantSlug(input.restaurantName) || `restaurante-${Date.now()}`;
 
   return db.transaction(async (tx) => {
-<<<<<<< HEAD
-    const [existing] = await tx
-      .select({ id: restaurants.id })
-      .from(restaurants)
-      .where(eq(restaurants.slug, baseSlug))
-      .limit(1);
-
-    const slug = existing ? `${baseSlug}-${suffix}` : baseSlug;
-
-=======
-    const baseSlug = toRestaurantSlug(input.restaurantName) || "restaurante";
     let slug = baseSlug;
     let suffix = 2;
     while (true) {
-      const [existingSlug] = await tx.select({ id: restaurants.id }).from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
-      if (!existingSlug) break;
+      const [existing] = await tx.select({ id: restaurants.id }).from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
+      if (!existing) break;
       slug = `${baseSlug}-${suffix}`;
       suffix += 1;
     }
->>>>>>> 19cf59f (vamos la)
     const [restaurant] = await tx
       .insert(restaurants)
       .values({
         name: input.restaurantName,
         slug,
-<<<<<<< HEAD
         whatsappInstance: input.whatsappInstance ?? slug,
-=======
-        whatsappInstance: input.whatsappInstance,
->>>>>>> 19cf59f (vamos la)
         aiInstructions: input.aiInstructions ?? null,
         phone: input.phone ?? null,
         whatsapp: input.whatsapp ?? null,
@@ -105,7 +79,7 @@ export async function registerOwner(input: RegisterInput) {
 
 export async function verifyLogin(email: string, password: string) {
   const user = await findUserByEmail(email.toLowerCase());
-  if (!user) return null;
+  if (!user || !user.isActive) return null;
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return null;

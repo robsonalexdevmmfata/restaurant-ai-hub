@@ -23,7 +23,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       return reply.status(201).send({
         token,
-        user: { id: user.id, email: user.email, role: user.role },
+        user: { id: user.id, name: user.name, email: user.email, role: user.role, isActive: true },
         restaurant,
       });
     } catch (error) {
@@ -56,8 +56,10 @@ export async function authRoutes(app: FastifyInstance) {
       token,
       user: {
         id: result.user.id,
+        name: result.user.name,
         email: result.user.email,
         role: result.user.role,
+        isActive: result.user.isActive,
       },
       restaurant: result.restaurant,
     };

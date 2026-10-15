@@ -2,16 +2,38 @@ import { z } from "zod";
 
 export const productStatusSchema = z.enum(["DISPONIVEL", "INDISPONIVEL"]);
 
+const imageUrlSchema = z.preprocess(
+  (value) => (value === "" ? null : value),
+  z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+      message: "A imagem deve usar uma URL HTTP ou HTTPS",
+    })
+    .nullable()
+    .optional(),
+);
+
 export const createProductSchema = z.object({
   menuId: z.coerce.number().int().positive().optional(),
   name: z.string().min(1).max(255),
   description: z.string().max(2000).optional(),
   price: z.coerce.number().positive(),
   category: z.string().max(100).optional(),
+  imageUrl: imageUrlSchema,
   status: productStatusSchema.default("DISPONIVEL"),
 });
 
 export const updateProductSchema = createProductSchema.partial();
+
+export const productImageUploadSchema = z.object({
+  image: z
+    .string()
+    .max(2_100_000)
+    .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/, "Envie uma imagem JPEG válida"),
+});
 
 export const listProductsQuerySchema = z.object({
   menuId: z.coerce.number().int().positive().optional(),

@@ -3,6 +3,7 @@ import { Check, ExternalLink, MapPin, Navigation, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppShell, Card } from "@/components/app-shell";
+import { api, getToken, type ApiDelivery } from "@/lib/api";
 import { dispatchOrderStatusNotification } from "@/lib/delivery-notifications";
 import { distanceBetweenKm, geocodeBrazilPostalCode, getDeliveryDistance, optimizeDeliveryRoute } from "@/lib/delivery-routing";
 import { brl } from "@/lib/mock";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/motoboy")({
 });
 
 function DeliveryView() {
-  const { tenant, loading } = useRequireTenant("motoboy");
+  const { tenant, loading } = useRequireTenant(["motoboy", "gerente"]);
   const slug = tenant?.restaurantSlug ?? "pizzaria-vulcao";
   const { operations, update } = useTenantOperations(slug);
   const { branding } = useTenantBranding(slug);
@@ -26,6 +27,40 @@ function DeliveryView() {
   const [destinationDrafts, setDestinationDrafts] = useState<Record<string, { postalCode: string; latitude: string; longitude: string }>>({});
   const [originLatitude, setOriginLatitude] = useState("");
   const [originLongitude, setOriginLongitude] = useState("");
+  const [persistedDeliveries, setPersistedDeliveries] = useState<ApiDelivery[]>([]);
+  const [persistedHistory, setPersistedHistory] = useState<Awaited<ReturnType<typeof api.listDeliveryHistory>>>([]);
+  const [deliveryApiError, setDeliveryApiError] = useState("");
+  const hasPersistentDeliveryApi = Boolean(getToken());
+
+  async function refreshPersistentDeliveries() {
+    const [deliveries, history] = await Promise.all([api.listDeliveries(), api.listDeliveryHistory()]);
+    setPersistedDeliveries(deliveries);
+    setPersistedHistory(history);
+    setDeliveryApiError("");
+  }
+
+  useEffect(() => {
+    if (!hasPersistentDeliveryApi) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [deliveries, history] = await Promise.all([api.listDeliveries(), api.listDeliveryHistory()]);
+        if (active) {
+          setPersistedDeliveries(deliveries);
+          setPersistedHistory(history);
+          setDeliveryApiError("");
+        }
+      } catch (error) {
+        if (active) setDeliveryApiError(error instanceof Error ? error.message : "Não foi possível carregar a fila de entregas.");
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [hasPersistentDeliveryApi]);
 
   useEffect(() => {
     setOriginLatitude(String(operations.deliveryOrigin.latitude));
@@ -34,7 +69,28 @@ function DeliveryView() {
 
   if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
 
-  const pendingDeliveries = operations.orders.filter((order) => order.orderType === "Delivery / WhatsApp" && order.deliveryStatus !== "Entregue");
+  const pendingDeliveries = hasPersistentDeliveryApi
+    ? persistedDeliveries.map(({ order, assignment, driverName }) => ({
+        id: String(order.id),
+        customer: order.customerName ?? "Cliente",
+        table: "Delivery",
+        address: order.deliveryAddress ?? "Endereço não informado",
+        eta: "A calcular",
+        items: order.itemsJson?.map((item) => ({ name: item.name, qty: item.quantity, price: item.price })) ?? [],
+        kitchenStatus: order.status === "PREPARANDO" ? "Em preparo" as const : order.status === "ENTREGUE" ? "Pronto" as const : "Pendente" as const,
+        paymentStatus: "Pendente" as const,
+        paymentMethod: undefined,
+        deliveryStatus: assignment.status === "EM_ROTA" ? "Em rota" as const : "Disponível" as const,
+        orderType: "Delivery / WhatsApp" as const,
+        waitMinutes: 0,
+        neighborhood: order.deliveryNeighborhood ?? "Bairro não informado",
+        distanceKm: 0,
+        postalCode: order.deliveryPostalCode ?? undefined,
+        customerPhone: order.customerPhone ?? undefined,
+        driverName: driverName ?? undefined,
+        trackingToken: order.trackingToken ?? undefined,
+      }))
+    : operations.orders.filter((order) => order.orderType === "Delivery / WhatsApp" && order.deliveryStatus !== "Entregue");
   const routePlan = optimizeDeliveryRoute(pendingDeliveries, operations.deliveryOrigin, branding.deliveryFees);
   const activeDeliveries = routePlan.map((stop) => stop.order);
 
@@ -101,13 +157,24 @@ function DeliveryView() {
     showToast({ title: "CEP localizado", description: "Confira o ponto e salve para atualizar a rota.", variant: "success" });
   }
 
-  function startDelivery(id: string, address: string) {
+  async function startDelivery(id: string, address: string) {
     if (!tenant) return;
-    if (!operations.deliveryShiftStartedAt) {
+    if (!hasPersistentDeliveryApi && !operations.deliveryShiftStartedAt) {
       showToast({ title: "Inicie seu turno", description: "Abra o turno antes de sair para uma entrega.", variant: "warning" });
       return;
     }
     const order = operations.orders.find((item) => item.id === id);
+    if (hasPersistentDeliveryApi) {
+      try {
+        await api.startDelivery(Number(id));
+        await refreshPersistentDeliveries();
+        openMaps(address);
+        showToast({ title: "Rota iniciada", description: `Pedido ${id} atribuído a ${tenant.name}.`, variant: "success" });
+      } catch (error) {
+        showToast({ title: "Não foi possível iniciar a rota", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+      }
+      return;
+    }
     if (!order || order.deliveryStatus !== "Disponível") return;
     const trackingToken = order.trackingToken ?? crypto.randomUUID();
     let routeStarted = false;
@@ -146,7 +213,17 @@ function DeliveryView() {
     showToast({ title: "Rota iniciada", description: `Pedido ${id}: abrindo endereço no Google Maps.`, variant: "info" });
   }
 
-  function confirmDelivery(id: string) {
+  async function confirmDelivery(id: string) {
+    if (hasPersistentDeliveryApi) {
+      try {
+        await api.completeDelivery(Number(id));
+        await refreshPersistentDeliveries();
+        showToast({ title: "Entrega registrada", description: `O histórico persistido do pedido ${id} foi atualizado.`, variant: "success" });
+      } catch (error) {
+        showToast({ title: "Não foi possível concluir a entrega", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+      }
+      return;
+    }
     const delivery = operations.orders.find((item) => item.id === id);
     if (!delivery || delivery.deliveryStatus !== "Em rota") return;
     const method = collectionMethods[id] ?? "PIX";
@@ -265,6 +342,7 @@ function DeliveryView() {
 
   return (
     <AppShell tenant={tenant} title="Entregas / Delivery" subtitle={`${tenant.restaurant} · rotas e entregas em andamento`}>
+      {deliveryApiError && hasPersistentDeliveryApi && <div role="alert" className="mb-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-[12px] text-rose-800">{deliveryApiError} · As ações de entrega não foram substituídas por dados locais.</div>}
       <Card className="mb-4 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -441,7 +519,7 @@ function DeliveryView() {
                     type="button"
                     onClick={() => (delivery.deliveryStatus === "Disponível" ? startDelivery(delivery.id, delivery.address) : confirmDelivery(delivery.id))}
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-brand-deep disabled:bg-stone-300"
-                    disabled={!operations.deliveryShiftStartedAt}
+                    disabled={!hasPersistentDeliveryApi && !operations.deliveryShiftStartedAt}
                   >
                     {delivery.deliveryStatus === "Disponível" ? <><Navigation className="size-4" />Iniciar Rota</> : <><Check className="size-4" />Confirmar Entrega</>}
                   </button>
@@ -460,14 +538,14 @@ function DeliveryView() {
       <Card className="mt-8 overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/5 px-4 py-4 sm:px-5">
           <div>
-            <p className="text-[13px] font-semibold">Histórico deste turno</p>
-            <p className="mt-1 text-[11px] text-stone-500">
-              {operations.deliveryShiftStartedAt
+            <p className="text-[13px] font-semibold">{hasPersistentDeliveryApi ? "Histórico persistido de entregas" : "Histórico deste turno"}</p>
+            <p className="mt-1 text-[11px] text-stone-500">{hasPersistentDeliveryApi
+              ? "Conclusões registradas no servidor e compartilhadas com a equipe."
+              : operations.deliveryShiftStartedAt
                 ? `Iniciado às ${new Date(operations.deliveryShiftStartedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · taxas recebidas por entregas concluídas.`
-                : "Turno encerrado · inicie um novo turno para começar outro histórico."}
-            </p>
+                : "Turno encerrado · inicie um novo turno para começar outro histórico."}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+          {!hasPersistentDeliveryApi && <div className="flex flex-wrap items-center gap-4 sm:gap-5">
             <div className="grid grid-cols-2 gap-3 text-right sm:grid-cols-5">
               <div><p className="text-[10px] text-stone-500">Taxas PIX</p><p className="text-[12px] font-semibold">{brl(pixFees)}</p></div>
               <div><p className="text-[10px] text-stone-500">Taxas espécie</p><p className="text-[12px] font-semibold">{brl(cashFees)}</p></div>
@@ -480,9 +558,19 @@ function DeliveryView() {
             ) : (
               <button type="button" onClick={startShift} className="rounded-md bg-brand px-3 py-2 text-[11px] font-semibold text-white hover:bg-brand-deep">Iniciar turno</button>
             )}
-          </div>
+          </div>}
         </div>
-        {operations.deliveryHistory.length ? (
+        {hasPersistentDeliveryApi ? persistedHistory.length ? (
+          <div className="divide-y divide-black/5">
+            {persistedHistory.map((entry) => (
+              <div key={`${entry.orderId}-${entry.deliveredAt}`} className="grid gap-1.5 px-4 py-3 text-[12px] sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:gap-4">
+                <span className="font-medium">Pedido #{entry.orderId} · {entry.customerName ?? "Cliente"}</span>
+                <span className="text-stone-500">{entry.deliveryNeighborhood ?? "Bairro não informado"} · {entry.driverName ?? "Entregador"} · {entry.deliveredAt ? new Date(entry.deliveredAt).toLocaleString("pt-BR") : "Horário indisponível"}</span>
+                <span className="font-semibold sm:text-right">Pedido {brl(entry.total)}</span>
+              </div>
+            ))}
+          </div>
+        ) : <p className="p-4 text-[12px] text-stone-500">Nenhuma entrega concluída registrada no servidor.</p> : operations.deliveryHistory.length ? (
           <div className="divide-y divide-black/5">
             {operations.deliveryHistory.slice().reverse().map((entry) => (
               <div key={`${entry.orderId}-${entry.completedAt}`} className="grid gap-1.5 px-4 py-3 text-[12px] sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:gap-4">

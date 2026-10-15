@@ -7,7 +7,32 @@ import * as tableService from "./service.js";
 
 /** Mesas, sessões de mesa e caixa. Todas protegidas por JWT do restaurante. */
 export async function tableRoutes(app: FastifyInstance) {
-  app.addHook("preHandler", requireJwt);
+  app.addHook("preHandler", async (request, reply) => {
+    await requireJwt(request, reply);
+    if (reply.sent) return;
+
+    const { role } = getAuthUser(request);
+    if (role === "owner" || role === "gerente") return;
+
+    const route = (request.routeOptions.url ?? request.url.split("?")[0]).replace(/^\/api(?=\/)/, "");
+    const cashierRead =
+      role === "caixa" &&
+      request.method === "GET" &&
+      (route === "/me/tables" || route.startsWith("/me/cashier/sessions"));
+    const cashierClose =
+      role === "caixa" &&
+      request.method === "POST" &&
+      route.startsWith("/me/cashier/sessions/") &&
+      route.endsWith("/close");
+    const cashierOpenTable =
+      role === "caixa" &&
+      request.method === "POST" &&
+      route.startsWith("/me/tables/") &&
+      route.endsWith("/open");
+    if (!cashierRead && !cashierClose && !cashierOpenTable) {
+      return reply.status(403).send({ error: "Este perfil não tem acesso a esta operação" });
+    }
+  });
 
   app.get("/me/tables", async (request) => {
     const { restaurantId } = getAuthUser(request);

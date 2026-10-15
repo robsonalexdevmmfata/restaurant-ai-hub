@@ -35,13 +35,7 @@ export type AppNavItem = {
   badge?: string;
 };
 
-const navByRole: Record<AppRole, AppNavItem[]> = {
-  super_admin: [
-    { to: "/admin", label: "Visão global", icon: BarChart3 },
-    { to: "/admin#restaurantes", label: "Restaurantes", icon: Store },
-    { to: "/admin#métricas", label: "Métricas", icon: Shield },
-  ],
-  owner: [
+const ownerNavigation: AppNavItem[] = [
     { to: "/dashboard", label: "Visão geral", icon: LayoutPanelLeft },
     { to: "/conversas", label: "Conversas", icon: MessageSquare, badge: "3" },
     { to: "/cardapio", label: "Cardápio", icon: UtensilsCrossed },
@@ -54,7 +48,18 @@ const navByRole: Record<AppRole, AppNavItem[]> = {
     { to: "/caixa", label: "Caixa", icon: Banknote },
     { to: "/usuarios", label: "Usuários", icon: Users },
     { to: "/conexao", label: "Conexão", icon: QrCode },
-    { to: "/dashboard#equipe", label: "Equipe", icon: Users },
+];
+
+const navByRole: Record<AppRole, AppNavItem[]> = {
+  super_admin: [
+    { to: "/admin", label: "Visão global", icon: BarChart3 },
+    { to: "/admin#restaurantes", label: "Restaurantes", icon: Store },
+    { to: "/admin#métricas", label: "Métricas", icon: Shield },
+  ],
+  owner: ownerNavigation,
+  gerente: [...ownerNavigation, { to: "/motoboy", label: "Entregas", icon: Bike }],
+  atendente: [
+    { to: "/conversas", label: "Conversas", icon: MessageSquare },
   ],
   cozinha: [
     { to: "/cozinha", label: "Cozinha", icon: ChefHat },
@@ -74,6 +79,8 @@ const navByRole: Record<AppRole, AppNavItem[]> = {
 const roleLabel: Record<AppRole, string> = {
   super_admin: "Super Admin",
   owner: "Proprietário",
+  gerente: "Gerente",
+  atendente: "Atendimento",
   cozinha: "Cozinheira",
   caixa: "Caixa / PDV",
   motoboy: "Motoboy",

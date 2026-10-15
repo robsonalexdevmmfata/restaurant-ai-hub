@@ -24,7 +24,7 @@ export const Route = createFileRoute("/conversas")({
 });
 
 function Conversas() {
-  const { tenant, loading } = useRequireTenant("owner");
+  const { tenant, loading } = useRequireTenant(["owner", "gerente", "atendente"]);
   const slug = tenant?.restaurantSlug ?? "pizzaria-vulcao";
   const { items: activeMenu } = useTenantMenu(slug);
   const { update: updateOperations } = useTenantOperations(slug);

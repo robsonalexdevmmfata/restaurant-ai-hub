@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { products } from "../../db/schema.js";
+import { productImages, products } from "../../db/schema.js";
 import type { CreateProductInput, UpdateProductInput } from "./schemas.js";
 
 export async function listProductsByRestaurant(restaurantId: number, menuId?: number) {
@@ -42,6 +42,7 @@ export async function createProduct(
       description: input.description ?? null,
       price: input.price.toFixed(2),
       category: input.category ?? null,
+      imageUrl: input.imageUrl ?? null,
       status: input.status,
     })
     .returning();
@@ -56,6 +57,7 @@ export async function updateProduct(id: number, restaurantId: number, input: Upd
       ...(input.description !== undefined && { description: input.description }),
       ...(input.price !== undefined && { price: input.price.toFixed(2) }),
       ...(input.category !== undefined && { category: input.category }),
+      ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.menuId !== undefined && { menuId: input.menuId }),
     })
@@ -70,4 +72,56 @@ export async function deleteProduct(id: number, restaurantId: number) {
     .where(and(eq(products.id, id), eq(products.restaurantId, restaurantId)))
     .returning({ id: products.id });
   return row ?? null;
+}
+
+export async function saveProductImage(
+  id: number,
+  restaurantId: number,
+  data: Buffer,
+  mimeType: string,
+) {
+  return db.transaction(async (tx) => {
+    const [product] = await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.id, id), eq(products.restaurantId, restaurantId)))
+      .limit(1);
+    if (!product) return null;
+
+    await tx
+      .insert(productImages)
+      .values({ productId: id, restaurantId, mimeType, data })
+      .onConflictDoUpdate({
+        target: productImages.productId,
+        set: { restaurantId, mimeType, data, updatedAt: new Date() },
+      });
+    const imageUrl = `/public/products/${id}/image?v=${Date.now()}`;
+    await tx
+      .update(products)
+      .set({ imageUrl })
+      .where(and(eq(products.id, id), eq(products.restaurantId, restaurantId)));
+    return { imageUrl };
+  });
+}
+
+export async function deleteProductImage(id: number, restaurantId: number) {
+  return db.transaction(async (tx) => {
+    const [product] = await tx
+      .select({ id: products.id, imageUrl: products.imageUrl })
+      .from(products)
+      .where(and(eq(products.id, id), eq(products.restaurantId, restaurantId)))
+      .limit(1);
+    if (!product) return false;
+
+    await tx
+      .delete(productImages)
+      .where(and(eq(productImages.productId, id), eq(productImages.restaurantId, restaurantId)));
+    if (product.imageUrl?.startsWith(`/public/products/${id}/image`)) {
+      await tx
+        .update(products)
+        .set({ imageUrl: null })
+        .where(and(eq(products.id, id), eq(products.restaurantId, restaurantId)));
+    }
+    return true;
+  });
 }

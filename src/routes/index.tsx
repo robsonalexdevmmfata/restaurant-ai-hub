@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Footer } from "../components/footer";
 
@@ -45,7 +46,12 @@ const testimonials = [
   { name: "Marina Costa", role: "Gerente · Bistrô Nove", quote: "A gente reduz a fricção entre pedidos e entrega, e o cliente sente na velocidade.", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=80" },
   { name: "Rafael Nunes", role: "Proprietário · Grill House", quote: "Conseguimos escalar para 3 unidades com o mesmo padrão de operação e qualidade.", avatar: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=500&q=80" },
   { name: "Lúcia Haddad", role: "Dona · Café Novelo", quote: "A IA responde pedidos e também cuida do marketing, com muita consistência na experiência.", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=500&q=80" },
-  { name: "Diego Martins", role: "Operações · Pizza Nova", quote: "A gente deixou de perder pedidos e reforçou o controle do caixa de forma clara.", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80" },
+  {
+    name: "Diego Martins",
+    role: "Operações · Pizza Nova",
+    quote: "A gente deixou de perder pedidos e reforçou o controle do caixa de forma clara.",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80",
+  },
   { name: "Renata Santos", role: "CEO · Boulangerie da Rua", quote: "A gestão por papel e a automação do WhatsApp deram muito mais previsibilidade para a equipe.", avatar: "https://images.unsplash.com/photo-1546967191-fdfb13ed6b1e?auto=format&fit=crop&w=500&q=80" },
 ];
 
@@ -57,17 +63,19 @@ const plans = [
 
 function LandingPage() {
   const [slideIndex, setSlideIndex] = useState(0);
+  const totalSlides = Math.ceil(testimonials.length / 3);
 
   useEffect(() => {
-    const totalSlides = Math.ceil(testimonials.length / 3);
     const timer = window.setInterval(() => {
       setSlideIndex((prev) => (prev + 1) % totalSlides);
     }, 4000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [totalSlides]);
 
-  const visibleTestimonials = testimonials.slice(slideIndex * 3, slideIndex * 3 + 3);
+  const testimonialSlides = Array.from({ length: totalSlides }, (_, index) =>
+    testimonials.slice(index * 3, index * 3 + 3),
+  );
 
   return (
     <div className="min-h-screen bg-[#f5f6f2] text-ink">
@@ -185,33 +193,64 @@ function LandingPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Depoimentos</p>
               <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight">Líderes de operação que já transformaram o atendimento</h2>
             </div>
-            <div className="mt-10 overflow-hidden">
-              <div className="grid gap-6 md:grid-cols-3">
-                {visibleTestimonials.map((item) => (
-                  <div key={item.name} className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                    <div className="mb-4 flex items-center gap-3">
-                      <img src={item.avatar} alt={item.name} className="size-12 rounded-full object-cover ring-2 ring-white/10" />
-                      <div>
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-stone-400">{item.role}</p>
-                      </div>
+            <div className="mt-10 overflow-hidden" aria-roledescription="carrossel" aria-label="Depoimentos de clientes">
+              <div className="overflow-hidden">
+                <div
+                  className="flex transition-transform duration-500 ease-in-out motion-reduce:transition-none"
+                  style={{ transform: `translateX(-${slideIndex * 100}%)` }}
+                  aria-live="polite"
+                >
+                  {testimonialSlides.map((slide, index) => (
+                    <div key={index} className="grid w-full shrink-0 gap-5 md:grid-cols-3">
+                      {slide.map((item) => (
+                        <div key={item.name} className="flex min-h-72 flex-col items-center rounded-3xl border border-white/10 bg-white/[0.06] px-6 py-7 text-center shadow-lg shadow-black/10 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.09]">
+                          <img
+                            src={item.avatar}
+                            alt={`Retrato de ${item.name}`}
+                            loading="lazy"
+                            className="size-20 rounded-full border-4 border-white/15 object-cover shadow-xl shadow-black/30 ring-2 ring-emerald-300/70"
+                          />
+                          <p className="mt-4 font-semibold">{item.name}</p>
+                          <p className="mt-1 text-sm text-stone-400">{item.role}</p>
+                          <div aria-label="5 de 5 estrelas" className="mt-4 tracking-[0.2em] text-amber-300">★★★★★</div>
+                          <p className="mt-3 text-sm leading-6 text-stone-200">“{item.quote}”</p>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-base leading-7 text-stone-200">“{item.quote}”</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-              <div className="mt-6 flex justify-center gap-2">
-                {Array.from({ length: Math.ceil(testimonials.length / 3) }).map((_, index) => (
+              <div className="mt-7 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  aria-label="Ver grupo anterior de depoimentos"
+                  onClick={() => setSlideIndex((current) => (current + totalSlides - 1) % totalSlides)}
+                  className="grid size-9 place-items-center rounded-full border border-white/15 text-white/80 transition hover:bg-white/10"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <div className="flex gap-2">
+                {Array.from({ length: totalSlides }).map((_, index) => (
                   <button
                     key={index}
                     type="button"
-                    aria-label={`Ir para depoimento ${index + 1}`}
+                    aria-label={`Mostrar depoimentos ${index * 3 + 1} a ${Math.min((index + 1) * 3, testimonials.length)}`}
+                    aria-current={index === slideIndex ? "true" : undefined}
                     onClick={() => setSlideIndex(index)}
                     className={`h-2.5 rounded-full transition-all ${
                       index === slideIndex ? "w-8 bg-brand" : "w-2.5 bg-white/30 hover:bg-white/50"
                     }`}
                   />
                 ))}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Ver próximo grupo de depoimentos"
+                  onClick={() => setSlideIndex((current) => (current + 1) % totalSlides)}
+                  className="grid size-9 place-items-center rounded-full border border-white/15 text-white/80 transition hover:bg-white/10"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
               </div>
             </div>
           </div>

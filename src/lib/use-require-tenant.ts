@@ -17,12 +17,14 @@ export function useRequireTenant(requiredRole?: AppRole | AppRole[]) {
       return;
     }
 
-    if (requiredRole && !Array.isArray(requiredRole) && tenant.role !== requiredRole) {
-      navigate({ to: "/login", replace: true });
-      return;
-    }
-
-    if (requiredRole && Array.isArray(requiredRole) && !requiredRole.includes(tenant.role)) {
+    const requiredRoles = requiredRole
+      ? Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+      : [];
+    const roleAllowed =
+      tenant.role === "owner" ||
+      tenant.role === "gerente" ||
+      requiredRoles.includes(tenant.role);
+    if (requiredRole && !roleAllowed) {
       navigate({ to: "/login", replace: true });
       return;
     }

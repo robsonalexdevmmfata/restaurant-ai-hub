@@ -15,9 +15,11 @@ import {
 import { useEffect, useState } from "react";
 
 import { AppShell, Card, Skeleton } from "@/components/app-shell";
+import { useLoad } from "@/components/kit";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createRestaurantStaffAccount, DEMO_ACCOUNTS, getRestaurantStaff, type AppRole } from "@/lib/auth";
+import { getToken } from "@/lib/api";
+import { data } from "@/lib/data";
 import { brl, chats, hourly, kpis } from "@/lib/mock";
 import { useTenantOperations } from "@/lib/operations";
 import { printThermalReceipt } from "@/lib/thermal-print";
@@ -41,14 +43,15 @@ function Dashboard() {
   const { tenant, loading } = useRequireTenant("owner");
   const { operations } = useTenantOperations(tenant?.restaurantSlug ?? "pizzaria-vulcao");
   const { branding } = useTenantBranding(tenant?.restaurantSlug ?? "pizzaria-vulcao");
+  const teamLoad = useLoad(() => data.listUsers(), [tenant?.restaurantSlug]);
   const [ready, setReady] = useState(false);
-  const [teamMembers, setTeamMembers] = useState(() => getRestaurantStaff(tenant?.restaurantSlug || "pizzaria-vulcao"));
   const [selectedAuditMember, setSelectedAuditMember] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [addingMember, setAddingMember] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    role: "cozinha" as Exclude<AppRole, "super_admin" | "owner">,
+    role: "cozinha" as "cozinha" | "caixa" | "motoboy",
   });
 
   useEffect(() => {
@@ -56,21 +59,16 @@ function Dashboard() {
     return () => window.clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    if (tenant) {
-      setTeamMembers(getRestaurantStaff(tenant.restaurantSlug));
-    }
-  }, [tenant]);
-
   if (loading || !tenant) return <BootScreen />;
 
-  const fallbackMembers = [DEMO_ACCOUNTS.cozinha, DEMO_ACCOUNTS.caixa, DEMO_ACCOUNTS.motoboy].map((member) => ({
-    id: `${tenant.restaurantSlug}-${member.role}`,
-    name: member.name,
-    email: member.email,
-    role: member.role,
-  }));
-  const staffCards = teamMembers.length ? teamMembers : fallbackMembers;
+  const staffCards = (teamLoad.data ?? [])
+    .filter((member) => member.role !== "owner" && member.role !== "OWNER")
+    .map((member) => ({
+      id: String(member.id),
+      name: member.name ?? member.email,
+      email: member.email,
+      role: member.role.toLowerCase(),
+    }));
   const selectedAuditEntries = selectedAuditMember
     ? operations.staffAudit.filter((entry) => entry.actorEmail === selectedAuditMember.email.toLowerCase())
     : [];
@@ -159,24 +157,23 @@ function Dashboard() {
     if (!printed) showToast({ title: "Pop-up bloqueado", description: "Permita pop-ups para imprimir ou salvar o fechamento em PDF.", variant: "warning" });
   }
 
-  function addMember(e: React.FormEvent) {
+  async function addMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!tenant) return;
-
-    const created = createRestaurantStaffAccount({
-      name: form.name,
-      email: form.email,
-      password: form.password,
-      role: form.role,
-      restaurant: tenant.restaurant,
-      restaurantSlug: tenant.restaurantSlug,
-      owner: tenant.name,
-    });
-
-    if (!created) return;
-
-    setTeamMembers((prev) => [...prev, created]);
-    setForm({ name: "", email: "", password: "", role: "cozinha" });
+    if (!getToken()) {
+      showToast({ title: "Conta em modo demonstração", description: "Conecte o backend para criar logins persistentes para sua equipe.", variant: "warning" });
+      return;
+    }
+    setAddingMember(true);
+    try {
+      await data.createUser(form);
+      await teamLoad.reload();
+      setForm({ name: "", email: "", password: "", role: "cozinha" });
+      showToast({ title: "Acesso criado", description: `O login foi vinculado à equipe de ${tenant.restaurant}.`, variant: "success" });
+    } catch (error) {
+      showToast({ title: "Não foi possível criar o acesso", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+    } finally {
+      setAddingMember(false);
+    }
   }
 
   return (
@@ -410,8 +407,10 @@ function Dashboard() {
         <Card id="equipe" className="p-4">
           <div className="flex items-center justify-between">
             <p className="text-[13px] font-semibold">Gestão de equipe</p>
-            <span className="text-[11px] text-stone-400">{staffCards.length} acessos exibidos</span>
+            <span className="text-[11px] text-stone-400">{teamLoad.data ? `${staffCards.length} acessos` : "Carregando equipe…"}</span>
           </div>
+          {teamLoad.error && <p role="alert" className="mt-3 text-[12px] text-red-700">{teamLoad.error}</p>}
+          {!getToken() && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-[12px] text-amber-800">No modo demonstração, os logins não são persistidos. Conecte o backend para criar contas reais da equipe.</p>}
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -423,20 +422,28 @@ function Dashboard() {
                   className="rounded-md border border-black/5 bg-stone-50 p-3 text-left transition hover:border-brand/30 hover:bg-emerald-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
                 >
                   <span className="block font-medium">{member.name}</span>
-                  <span className="mt-1 block text-[12px] text-stone-500">{member.role === "cozinha" ? "Cozinha" : member.role === "caixa" ? "Caixa / PDV" : "Motoboy"}</span>
+                  <span className="mt-1 block text-[12px] text-stone-500">{member.role === "cozinha" ? "Cozinha" : member.role === "caixa" ? "Caixa / PDV" : member.role === "motoboy" ? "Motoboy" : member.role}</span>
                   <span className="mt-2 block truncate text-[11px] text-brand">{member.email}</span>
                   <span className="mt-3 block text-[10px] font-semibold uppercase tracking-wide text-stone-400">Ver atividade</span>
                 </button>
               ))}
+              {!teamLoad.error && teamLoad.data && staffCards.length === 0 && (
+                <p className="rounded-xl border border-dashed border-black/10 p-4 text-[12px] text-stone-500">Ainda não há colaboradores cadastrados neste restaurante.</p>
+              )}
             </div>
 
             <form onSubmit={addMember} className="rounded-xl border border-black/5 bg-stone-50 p-3">
               <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-stone-500">Adicionar login</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                O acesso será associado a {tenant.restaurant} ({tenant.restaurantSlug}) e usará o login geral do sistema.
+              </p>
               <div className="mt-3 space-y-3">
                 <label className="block">
                   <span className="text-[11px] font-medium text-stone-500">Nome</span>
                   <input
                     required
+                    minLength={2}
+                    disabled={!getToken()}
                     value={form.name}
                     onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                     className="mt-1 w-full rounded-md border border-black/5 bg-white px-3 py-2 text-[12px] outline-none focus:ring-2 focus:ring-brand/30"
@@ -446,6 +453,7 @@ function Dashboard() {
                   <span className="text-[11px] font-medium text-stone-500">E-mail</span>
                   <input
                     required
+                    disabled={!getToken()}
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -456,6 +464,8 @@ function Dashboard() {
                   <span className="text-[11px] font-medium text-stone-500">Senha</span>
                   <input
                     required
+                    minLength={6}
+                    disabled={!getToken()}
                     type="password"
                     value={form.password}
                     onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
@@ -466,7 +476,8 @@ function Dashboard() {
                   <span className="text-[11px] font-medium text-stone-500">Função</span>
                   <select
                     value={form.role}
-                    onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as Exclude<AppRole, "super_admin" | "owner"> }))}
+                    disabled={!getToken()}
+                    onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as "cozinha" | "caixa" | "motoboy" }))}
                     className="mt-1 w-full rounded-md border border-black/5 bg-white px-3 py-2 text-[12px] outline-none focus:ring-2 focus:ring-brand/30"
                   >
                     <option value="cozinha">Cozinheira</option>
@@ -474,8 +485,8 @@ function Dashboard() {
                     <option value="motoboy">Motoboy</option>
                   </select>
                 </label>
-                <button type="submit" className="w-full rounded-md bg-brand px-3 py-2 text-[12px] font-medium text-white hover:bg-brand-deep">
-                  Criar login
+                <button type="submit" disabled={!getToken() || addingMember} className="w-full rounded-md bg-brand px-3 py-2 text-[12px] font-medium text-white hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50">
+                  {addingMember ? "Criando acesso…" : "Criar login"}
                 </button>
               </div>
             </form>

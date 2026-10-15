@@ -2,7 +2,14 @@
 
 export const API_URL =
   (import.meta.env['VITE_API_URL'] as string | undefined)?.replace(/\/$/, "") ??
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ??
   "http://localhost:3001";
+
+export function apiAssetUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) return path;
+  return `${API_URL}/api${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 const TOKEN_KEY = "restauranteai.token";
 
@@ -76,6 +83,13 @@ export type ApiRestaurant = {
   whatsappInstance: string;
   aiInstructions: string | null;
   description: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  primaryColor: string;
+  faviconUrl: string | null;
+  webhookUrl: string | null;
+  publicPolicy: string | null;
+  cnpj: string | null;
   phone: string | null;
   whatsapp: string | null;
   address: string | null;
@@ -105,6 +119,7 @@ export type ApiProduct = {
   description: string | null;
   price: string;
   category: string | null;
+  imageUrl: string | null;
   status: "DISPONIVEL" | "INDISPONIVEL";
 };
 
@@ -114,6 +129,7 @@ export type ProductPayload = {
   description?: string | undefined;
   price: number;
   category?: string | undefined;
+  imageUrl?: string | null | undefined;
   status?: "DISPONIVEL" | "INDISPONIVEL" | undefined;
 };
 
@@ -141,14 +157,36 @@ export type ApiOrder = {
   tableId: number | null;
   sessionId: number | null;
   source: string;
+  tableLabel?: string | null;
   customerName: string | null;
   customerPhone: string | null;
   orderDetails: string;
   itemsJson: ApiOrderItem[] | null;
   total: string;
   notes: string | null;
-  status: "PENDENTE" | "PREPARANDO" | "ENTREGUE" | "CANCELADO";
+  paymentMethod?: string | null;
+  deliveryAddress?: string | null;
+  deliveryNeighborhood?: string | null;
+  deliveryPostalCode?: string | null;
+  status: "PENDENTE" | "PREPARANDO" | "ENTREGUE" | "SAIU_PARA_ENTREGA" | "FINALIZADO" | "CANCELADO";
   createdAt: string;
+  trackingToken?: string | null;
+};
+
+export type ApiPublicOrderTracking = {
+  status: ApiOrder["status"];
+  total: string;
+  createdAt: string;
+};
+
+export type ApiOrderStatusHistory = {
+  previousStatus: string | null;
+  newStatus: string;
+  operatorId: number | null;
+  operatorLabel: string | null;
+  source: string;
+  reason: string | null;
+  changedAt: string;
 };
 
 export type ApiSession = {
@@ -156,20 +194,45 @@ export type ApiSession = {
   tableId: number;
   tableLabel: string;
   openedAt: string;
+  closeRequestedAt: string | null;
   total: number;
   orders: ApiOrder[];
 };
 
 export type PaymentMethod = "dinheiro" | "pix" | "cartao" | "outros";
 
+export type ApiDelivery = {
+  order: ApiOrder;
+  assignment: {
+    orderId: number;
+    restaurantId: number;
+    driverId: number | null;
+    status: "DISPONIVEL" | "EM_ROTA" | "ENTREGUE";
+    assignedAt: string | null;
+    updatedAt: string;
+    deliveredAt: string | null;
+  };
+  driverName: string | null;
+};
+
 export type PublicMenuResponse = {
   restaurant: Pick<
     ApiRestaurant,
-    "id" | "name" | "slug" | "description" | "phone" | "whatsapp" | "address" | "city" | "state" | "openingHours" | "isOpen"
+    "id" | "name" | "slug" | "description" | "logoUrl" | "coverUrl" | "primaryColor" | "faviconUrl" | "phone" | "whatsapp" | "address" | "city" | "state" | "openingHours" | "publicPolicy" | "isOpen"
   >;
   menu: { id: number; name: string; slug: string } | null;
   products: ApiProduct[];
+  promotions: ApiPromotion[];
   tables: { id: number; label: string }[];
+};
+
+export type ApiPromotion = {
+  id: number;
+  title: string | null;
+  description: string | null;
+  sortOrder: number;
+  isActive?: boolean;
+  imageUrl: string;
 };
 
 export type AuthResponse = {
@@ -211,6 +274,24 @@ export const api = {
   getRestaurant: () => request<ApiRestaurant>("/me/restaurant"),
   updateRestaurant: (input: Partial<ApiRestaurant>) =>
     request<ApiRestaurant>("/me/restaurant", { method: "PATCH", body: JSON.stringify(input) }),
+  uploadRestaurantLogo: (image: string) =>
+    request<{ logoUrl: string | null }>("/me/restaurant/logo", {
+      method: "POST",
+      body: JSON.stringify({ image }),
+    }),
+  deleteRestaurantLogo: () =>
+    request<{ logoUrl: string | null }>("/me/restaurant/logo", { method: "DELETE" }),
+  uploadRestaurantAsset: (kind: "cover" | "favicon", image: string) =>
+    request<{ coverUrl?: string; faviconUrl?: string }>(`/me/restaurant/assets/${kind}`, {
+      method: "POST",
+      body: JSON.stringify({ image }),
+    }),
+  deleteRestaurantAsset: (kind: "cover" | "favicon") =>
+    request<void>(`/me/restaurant/assets/${kind}`, { method: "DELETE" }),
+  listPromotions: () => request<ApiPromotion[]>("/me/promotions"),
+  createPromotion: (input: { title: string; description?: string; image: string }) =>
+    request<{ id: number }>("/me/promotions", { method: "POST", body: JSON.stringify(input) }),
+  deletePromotion: (id: number) => request<void>(`/me/promotions/${id}`, { method: "DELETE" }),
 
   /* cardápios */
   listMenus: () => request<ApiMenu[]>("/me/menus"),
@@ -229,6 +310,13 @@ export const api = {
     request<ApiProduct>("/me/products", { method: "POST", body: JSON.stringify(input) }),
   updateProduct: (id: number, input: Partial<ProductPayload>) =>
     request<ApiProduct>(`/me/products/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  uploadProductImage: (id: number, image: string) =>
+    request<{ imageUrl: string }>(`/me/products/${id}/image`, {
+      method: "POST",
+      body: JSON.stringify({ image }),
+    }),
+  deleteProductImage: (id: number) =>
+    request<void>(`/me/products/${id}/image`, { method: "DELETE" }),
   deleteProduct: (id: number) => request<void>(`/me/products/${id}`, { method: "DELETE" }),
 
   /* mesas */
@@ -245,6 +333,33 @@ export const api = {
     request<ApiOrder[]>(`/me/orders${status ? `?status=${status}` : ""}`),
   updateOrderStatus: (id: number, status: ApiOrder["status"]) =>
     request<ApiOrder>(`/me/orders/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  orderStatusHistory: (id: number) =>
+    request<ApiOrderStatusHistory[]>(`/me/orders/${id}/status-history`),
+  listDeliveries: () => request<ApiDelivery[]>("/me/deliveries"),
+  startDelivery: (orderId: number) =>
+    request<ApiDelivery["assignment"]>(`/me/deliveries/${orderId}/start`, { method: "POST" }),
+  completeDelivery: (orderId: number) =>
+    request<ApiDelivery["assignment"]>(`/me/deliveries/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "ENTREGUE" }),
+    }),
+  deliveryHistory: (orderId: number) =>
+    request<{ driverId: number | null; driverName: string | null; status: string; occurredAt: string }[]>(
+      `/me/deliveries/${orderId}/history`,
+    ),
+  listDeliveryHistory: () =>
+    request<{
+      orderId: number;
+      customerName: string | null;
+      customerPhone: string | null;
+      deliveryAddress: string | null;
+      deliveryNeighborhood: string | null;
+      orderDetails: string;
+      total: string;
+      driverId: number | null;
+      driverName: string | null;
+      deliveredAt: string | null;
+    }[]>("/me/deliveries/history"),
 
   /* caixa */
   listOpenSessions: () => request<ApiSession[]>("/me/cashier/sessions"),
@@ -299,14 +414,17 @@ export const api = {
       tableLabel?: string | undefined;
       customerName?: string | undefined;
       customerPhone?: string | undefined;
+      paymentMethod?: PaymentMethod | undefined;
       notes?: string | undefined;
       items: ApiOrderItem[];
     },
   ) =>
-    request<{ order: ApiOrder; total: number }>(`/public/restaurants/${slug}/orders`, {
+    request<{ id: number; sessionId: number | null; total: number; trackingToken: string }>(`/public/restaurants/${slug}/orders`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  publicOrderStatus: (trackingToken: string) =>
+    request<ApiPublicOrderTracking>(`/public/order-tracking/${encodeURIComponent(trackingToken)}`),
 };
 
 export function slugify(value: string) {

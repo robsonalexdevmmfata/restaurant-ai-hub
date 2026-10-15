@@ -8,7 +8,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Entrar · RestaurantAI" },
-      { name: "description", content: "Acesse a plataforma com demonstração multi-tenant por papel e perfil do restaurante." },
+      { name: "description", content: "Entre no painel do seu restaurante com seu usuário e senha." },
     ],
   }),
   component: Login,
@@ -19,6 +19,7 @@ function Login() {
   const [email, setEmail] = useState(DEMO_ACCOUNTS.owner.email);
   const [password, setPassword] = useState(DEMO_ACCOUNTS.owner.password);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [suspensionNotice, setSuspensionNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,20 +34,18 @@ function Login() {
     }
   }, [navigate]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-
-    window.setTimeout(() => {
-      try {
-        const user = signIn(email, password);
-        navigate({ to: getDefaultRouteForRole(user.role), replace: true });
-      } catch {
-        window.alert("Credenciais inválidas. Use uma das contas de demonstração.");
-      } finally {
-        setLoading(false);
-      }
-    }, 600);
+    setLoginError("");
+    try {
+      const user = await signIn(email, password);
+      navigate({ to: getDefaultRouteForRole(user.role), replace: true });
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Não foi possível entrar. Verifique suas credenciais.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -65,7 +64,7 @@ function Login() {
             Gestão completa da operação em um só painel.
           </h2>
           <p className="mt-4 text-[14px] leading-relaxed text-stone-400">
-            Acesse as áreas por cargo: super admin, dono do restaurante, cozinheira, caixa e motoboy, com permissões isoladas por tenant.
+            Cada proprietário pode criar acessos de equipe para cozinha, caixa, entregas e atendimento. Cada conta fica vinculada ao restaurante correto.
           </p>
 
           <div className="mt-8 grid grid-cols-3 gap-4 text-left">
@@ -84,7 +83,7 @@ function Login() {
           </div>
         </div>
 
-        <p className="text-[11px] text-stone-600">Demonstração de RBAC · dados simulados</p>
+        <p className="text-[11px] text-stone-600">Acessos da equipe separados por restaurante e função.</p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center p-6">
@@ -128,6 +127,7 @@ function Login() {
               {loading ? "Entrando…" : "Entrar"}
             </button>
           </form>
+          {loginError && <p role="alert" className="mt-3 text-[12px] text-red-600">{loginError}</p>}
 
           {suspensionNotice && (
             <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-[12px] text-red-800">

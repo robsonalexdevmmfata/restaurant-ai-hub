@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import { requireApiSecret } from "../../middleware/auth.js";
+import { scheduleRestaurantEvent } from "../events/service.js";
 import { upsertConversationSchema } from "../conversations/schemas.js";
 import * as conversationService from "../conversations/service.js";
 import { createOrderSchema } from "../orders/schemas.js";
@@ -48,6 +49,20 @@ export async function internalRoutes(app: FastifyInstance) {
       status: parsed.data.status,
     });
 
+    scheduleRestaurantEvent(
+      restaurant.id,
+      "ORDER_CREATED",
+      {
+        orderId: order.id,
+        source: order.source,
+        customerPhone: order.customerPhone,
+        customerName: order.customerName,
+        orderDetails: order.orderDetails,
+        total: order.total,
+        status: order.status,
+      },
+      request.log,
+    );
     return reply.status(201).send(order);
   });
 

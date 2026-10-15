@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const orderStatusSchema = z.enum(["PENDENTE", "PREPARANDO", "ENTREGUE", "CANCELADO"]);
+export const orderStatusSchema = z.enum([
+  "PENDENTE",
+  "PREPARANDO",
+  "ENTREGUE",
+  "SAIU_PARA_ENTREGA",
+  "FINALIZADO",
+  "CANCELADO",
+]);
 
 export const listOrdersQuerySchema = z.object({
   status: orderStatusSchema.optional(),
@@ -9,6 +16,7 @@ export const listOrdersQuerySchema = z.object({
 
 export const updateOrderStatusSchema = z.object({
   status: orderStatusSchema,
+  reason: z.string().trim().min(1).max(500).optional(),
 });
 
 export const createOrderSchema = z.object({

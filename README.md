@@ -77,8 +77,26 @@ O planejador usa Haversine quando o pedido tem latitude/longitude, agrupa por ba
 
 Para notificações reais, configure `VITE_EVOLUTION_NOTIFICATION_PROXY_URL` para um endpoint server-side confiável. Ele recebe `customerPhone`, `orderId`, `event` e `message` em JSON, deve validar a origem/tenant e encaminhar à Evolution usando segredos mantidos no servidor. Nunca coloque `EVOLUTION_API_KEY` em variável `VITE_*`. Sem proxy ou telefone do cliente, as notificações são registradas como simuladas/sem telefone no estado local.
 
-O link de rastreio demonstra progresso no navegador e lê os pedidos do estado do tenant. O cardápio/branding ainda usa `localStorage`; para publicar catálogo personalizado entre dispositivos, sincronize esses dados com a API antes de produção.
+O link de rastreio consulta o status persistido pela API. Produtos, fotos e identidade visual do restaurante usam o PostgreSQL quando configurados; regras de entrega e categorias auxiliares continuam locais neste momento.
 
 ### QR de mesa entre dispositivos
 
-O backend inclui a migração `backend/sql/002_public_dining_tables.sql`, que adiciona o slug e as sessões de mesa no PostgreSQL. Aplique-a antes de iniciar a API. Configure `VITE_API_BASE_URL` com um endereço alcançável pelo celular que escaneia o QR; `localhost` só funciona quando navegador e API estão no mesmo dispositivo. Com a API configurada, a ocupação é consultada entre dispositivos; sem ela, usa o estado local de demonstração. Antes de produção, proteja os endpoints de abertura/fechamento com token QR assinado e limite de requisições.
+O backend inclui a migração `backend/sql/002_public_dining_tables.sql`, que adiciona o slug e as sessões públicas de mesa no PostgreSQL. Para pedidos por QR, o frontend usa `VITE_API_BASE_URL` (ou `VITE_API_URL`) e assume `http://localhost:3001` em desenvolvimento; configure um endereço alcançável pelo celular que escaneia o QR, pois `localhost` só funciona quando navegador e API estão no mesmo dispositivo. Erros da API são mostrados ao cliente em vez de confirmar pedidos somente no estado local. Antes de produção, proteja os endpoints públicos de mesa com token QR assinado e limite de requisições.
+
+### Migrações recentes de pedidos
+
+`backend/sql/004_order_tracking.sql` adiciona o token público de acompanhamento. `backend/sql/005_order_status_history.sql` cria a trilha de estados e registra um snapshot do estado atual dos pedidos existentes; como o sistema não guardava transições anteriores, esse snapshot não representa o histórico antes da migração. Verifique o schema do PostgreSQL antes de aplicar scripts manualmente e execute apenas os que ainda não foram aplicados.
+
+`backend/sql/006_product_images.sql` cria o armazenamento persistente de fotos JPEG dos produtos (até 1,5 MB) e logos (até 1 MB) no PostgreSQL. `backend/sql/007_restaurant_branding.sql` adiciona cor da marca, favicon e CNPJ ao restaurante; logo, cor e favicon são lidos pelo cardápio público. Aplique as migrações pendentes em ordem antes de usar os novos fluxos. O upload de fotos e o salvamento da identidade visual exigem uma sessão autenticada na API.
+
+`backend/sql/008_table_delivery_operations.sql` registra forma de pagamento e solicitação de fechamento da comanda, além de atribuição e histórico persistentes de entregas. O cardápio de mesa usa `restaurant_tables` e `table_sessions` para que novos pedidos acumulem na mesma comanda até o caixa encerrá-la. Entregadores e gerentes autenticados consultam `/api/me/deliveries`; atualizações e histórico ficam no PostgreSQL. O painel do caixa consulta solicitações de fechamento e só encerra a sessão após confirmação manual do recebimento.
+
+`backend/sql/009_restaurant_assets_and_integrations.sql` adiciona capa, políticas públicas, URL privada do webhook n8n e armazenamento persistente de favicons, capas e banners promocionais. Aplique a migração antes de usar os uploads em **Personalização** e **Promoções**. Logo, favicon, capa e banners são enviados pelo painel e gravados no PostgreSQL; use JPEG, PNG ou WebP de até 1 MB. Fotos de produtos continuam usando o endpoint otimizado já existente. O cardápio público e o QR da mesa carregam a capa, informações institucionais e banners publicados.
+
+### Eventos, n8n e Evolution API
+
+O backend envia JSON assincronamente ao webhook configurado por restaurante em **Personalização** nos eventos `ORDER_CREATED`, `ORDER_STATUS_CHANGED` e `TABLE_CLOSE_REQUESTED`. Também notifica o telefone informado no pedido pela Evolution API. Configure `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` no ambiente do backend, conforme `backend/.env.example`; ambas devem ser definidas juntas. Nunca use variáveis `VITE_*` para segredos da Evolution. Falhas externas são registradas no log da API e não desfazem pedidos já confirmados; o dispatcher atual não mantém fila nem novas tentativas persistentes.
+
+### Contas da equipe e isolamento por restaurante
+
+O proprietário cadastra cozinheiros, caixas, motoboys, atendentes e gerentes em **Usuários**. A API associa cada conta ao `restaurant_id` do JWT do proprietário, armazena a senha com bcrypt e usa e-mail + senha na tela de login; não é necessário informar slug. As consultas e alterações da equipe ficam limitadas ao restaurante autenticado. Desativar uma conta ou alterar seu papel invalida imediatamente os tokens antigos. Os atalhos de demonstração continuam disponíveis, mas não criam contas persistentes.

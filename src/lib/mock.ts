@@ -156,6 +156,10 @@ export const menu: MenuItem[] = [
   { id: "5", category: "Adicionais", name: "Borda recheada catupiry", description: "Borda generosa com catupiry original", price: 12, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
   { id: "6", category: "Bebidas", name: "Refrigerante 1L", description: "Cola, guaraná ou laranja", price: 8, available: true, imageUrl: "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=900&q=85" },
   { id: "7", category: "Bebidas", name: "Água com gás 500ml", description: "Garrafa individual gelada", price: 6, available: true, imageUrl: "https://images.unsplash.com/photo-1559839914-17aae19cec71?auto=format&fit=crop&w=900&q=85" },
+  { id: "8", category: "Pizzas salgadas", name: "Quatro queijos", description: "Muçarela, provolone, parmesão e gorgonzola", price: 59.9, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
+  { id: "9", category: "Pizzas salgadas", name: "Frango com catupiry", description: "Frango desfiado temperado, catupiry e orégano", price: 57.9, available: true, imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&w=900&q=85" },
+  { id: "10", category: "Pizzas doces", name: "Chocolate com morango", description: "Chocolate ao leite cremoso com morangos frescos", price: 45.9, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
+  { id: "11", category: "Bebidas", name: "Limonada da casa", description: "Limão espremido na hora, servida bem gelada", price: 9.9, available: true, imageUrl: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=85" },
 ];
 
 export const defaultPrompt = `Você é o atendente virtual da Pizzaria Vulcão. Seja educado, objetivo e use no máximo duas frases por mensagem.

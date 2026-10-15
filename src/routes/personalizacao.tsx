@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Copy, ExternalLink, ImagePlus, Palette, Store } from "lucide-react";
+import { Copy, ExternalLink, Palette, Store } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppShell, Card } from "@/components/app-shell";
+import { api, apiAssetUrl, getToken } from "@/lib/api";
+import { readImageAsDataUrl } from "@/lib/image-upload";
 import { useTenantBranding } from "@/lib/tenant-branding";
 import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
@@ -14,25 +16,62 @@ function RestaurantBranding() {
   const slug = tenant?.restaurantSlug ?? "pizzaria-vulcao";
   const { branding, update } = useTenantBranding(slug);
   const [draft, setDraft] = useState(branding);
+  const [saving, setSaving] = useState(false);
+  const [coverUrl, setCoverUrl] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [publicPolicy, setPublicPolicy] = useState("");
+  const [openingHours, setOpeningHours] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateName, setStateName] = useState("");
+  const [logoImage, setLogoImage] = useState("");
+  const [faviconImage, setFaviconImage] = useState("");
+  const [coverImage, setCoverImage] = useState("");
 
   useEffect(() => setDraft(branding), [branding]);
+  useEffect(() => {
+    if (!getToken()) return;
+    api.getRestaurant().then((restaurant) => {
+      setDraft((current) => ({
+        ...current,
+        logoUrl: restaurant.logoUrl ?? "",
+        primaryColor: restaurant.primaryColor,
+        faviconUrl: restaurant.faviconUrl ?? "",
+        cnpj: restaurant.cnpj ?? "",
+      }));
+      setCoverUrl(restaurant.coverUrl ?? "");
+      setWebhookUrl(restaurant.webhookUrl ?? "");
+      setPublicPolicy(restaurant.publicPolicy ?? "");
+      setOpeningHours(restaurant.openingHours ?? "");
+      setAddress(restaurant.address ?? "");
+      setCity(restaurant.city ?? "");
+      setStateName(restaurant.state ?? "");
+    }).catch((error: unknown) => {
+      showToast({
+        title: "Não foi possível carregar a identidade visual",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "warning",
+      });
+    });
+  }, [slug]);
 
   if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const publicUrl = `${origin}/cardapio/${tenant.restaurantSlug}`;
 
-  function uploadLogo(event: React.ChangeEvent<HTMLInputElement>) {
+  async function readBrandImage(event: React.ChangeEvent<HTMLInputElement>, kind: "logo" | "favicon" | "cover") {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
-    if (!/[.](png|jpe?g|webp)$/i.test(file.name) || file.size > 1_000_000) {
-      showToast({ title: "Arquivo não aceito", description: "Use PNG, JPG ou WebP com até 1 MB.", variant: "warning" });
-      event.target.value = "";
-      return;
+    try {
+      const image = await readImageAsDataUrl(file);
+      if (kind === "logo") setLogoImage(image);
+      else if (kind === "favicon") setFaviconImage(image);
+      else setCoverImage(image);
+    } catch (error) {
+      showToast({ title: "Arquivo não aceito", description: error instanceof Error ? error.message : "Escolha uma imagem válida.", variant: "warning" });
     }
-    const reader = new FileReader();
-    reader.onload = () => setDraft((current) => ({ ...current, logoUrl: String(reader.result ?? "") }));
-    reader.readAsDataURL(file);
   }
 
   async function copyPublicLink() {
@@ -44,10 +83,55 @@ function RestaurantBranding() {
     }
   }
 
-  function saveBranding(event: React.FormEvent) {
+  async function saveBranding(event: React.FormEvent) {
     event.preventDefault();
-    update(draft);
-    showToast({ title: "Identidade visual salva", description: "O cardápio público já usa as novas configurações.", variant: "success" });
+    setSaving(true);
+    let restaurantSaved = false;
+    try {
+      if (!getToken()) {
+        showToast({ title: "Conecte o backend para salvar", description: "A identidade visual só pode ser persistida com uma sessão autenticada.", variant: "warning" });
+        return;
+      }
+      const restaurant = await api.updateRestaurant({
+        primaryColor: draft.primaryColor,
+        cnpj: draft.cnpj || null,
+        webhookUrl: webhookUrl.trim() || null,
+        publicPolicy: publicPolicy.trim() || null,
+        openingHours: openingHours.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: stateName.trim(),
+      });
+      restaurantSaved = true;
+      let logoUrl = restaurant.logoUrl ?? "";
+      let faviconUrl = restaurant.faviconUrl ?? "";
+      let savedCoverUrl = restaurant.coverUrl ?? "";
+      if (logoImage) logoUrl = (await api.uploadRestaurantLogo(logoImage)).logoUrl ?? "";
+      if (faviconImage) faviconUrl = (await api.uploadRestaurantAsset("favicon", faviconImage)).faviconUrl ?? "";
+      if (coverImage) savedCoverUrl = (await api.uploadRestaurantAsset("cover", coverImage)).coverUrl ?? "";
+      update({
+        ...draft,
+        logoUrl,
+        primaryColor: restaurant.primaryColor,
+        faviconUrl,
+        cnpj: restaurant.cnpj ?? "",
+      });
+      setCoverUrl(savedCoverUrl);
+      setLogoImage("");
+      setFaviconImage("");
+      setCoverImage("");
+      showToast({ title: "Identidade visual salva", description: "As alterações foram persistidas e o cardápio público será atualizado.", variant: "success" });
+    } catch (error) {
+      showToast({
+        title: restaurantSaved ? "Personalização salva parcialmente" : "Não foi possível salvar a identidade visual",
+        description: restaurantSaved
+          ? `Os campos foram salvos, mas uma ou mais imagens não foram atualizadas: ${error instanceof Error ? error.message : "Tente enviar a imagem novamente."}`
+          : error instanceof Error ? error.message : "Tente novamente.",
+        variant: "warning",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -74,21 +158,47 @@ function RestaurantBranding() {
               <span className="font-mono text-[11px] uppercase text-stone-500">{draft.primaryColor}</span>
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-[12px] font-medium text-stone-600">
-                Logo por URL
-                <input value={draft.logoUrl.startsWith("data:") ? "" : draft.logoUrl} onChange={(event) => setDraft((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="https://.../logo.png" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px] text-ink outline-none focus:ring-2 focus:ring-brand/30" />
-              </label>
-              <label className="block text-[12px] font-medium text-stone-600">
-                Favicon por URL
-                <input value={draft.faviconUrl} onChange={(event) => setDraft((current) => ({ ...current, faviconUrl: event.target.value }))} placeholder="https://.../favicon.png" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px] text-ink outline-none focus:ring-2 focus:ring-brand/30" />
-              </label>
-            </div>
+            <section className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Logo", image: logoImage || draft.logoUrl, kind: "logo" as const },
+                { label: "Favicon", image: faviconImage || draft.faviconUrl, kind: "favicon" as const },
+                { label: "Capa do restaurante", image: coverImage || coverUrl, kind: "cover" as const },
+              ].map((asset) => (
+                <label key={asset.kind} className="cursor-pointer rounded-md border border-black/10 p-3 text-[11px] font-medium text-stone-600 hover:border-brand/40">
+                  <span className="block">{asset.label} · imagem até 1 MB</span>
+                  {asset.image ? <img src={apiAssetUrl(asset.image)} alt={`Prévia: ${asset.label}`} className="mt-2 h-20 w-full rounded object-cover" /> : <span className="mt-2 grid h-20 place-items-center rounded bg-stone-50 text-stone-400">Selecionar imagem</span>}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => void readBrandImage(event, asset.kind)}
+                    className="sr-only"
+                  />
+                </label>
+              ))}
+            </section>
 
             <label className="block text-[12px] font-medium text-stone-600">
               CNPJ para recibos
               <input value={draft.cnpj} onChange={(event) => setDraft((current) => ({ ...current, cnpj: event.target.value }))} placeholder="00.000.000/0000-00" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px] text-ink outline-none focus:ring-2 focus:ring-brand/30" />
             </label>
+
+            <section className="space-y-3 rounded-md border border-black/10 p-3">
+              <p className="text-[12px] font-semibold">Informações exibidas no cardápio público</p>
+              <label className="block text-[11px] font-medium text-stone-600">Horário de funcionamento<input value={openingHours} onChange={(event) => setOpeningHours(event.target.value)} maxLength={500} placeholder="Seg–Dom · 18h às 23h" className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <label className="text-[11px] font-medium text-stone-600 sm:col-span-1">Endereço<input value={address} onChange={(event) => setAddress(event.target.value)} maxLength={500} placeholder="Rua, número e bairro" className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+                <label className="text-[11px] font-medium text-stone-600">Cidade<input value={city} onChange={(event) => setCity(event.target.value)} maxLength={120} className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+                <label className="text-[11px] font-medium text-stone-600">Estado<input value={stateName} onChange={(event) => setStateName(event.target.value)} maxLength={60} className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+              </div>
+              <label className="block text-[11px] font-medium text-stone-600">Políticas e avisos<textarea value={publicPolicy} onChange={(event) => setPublicPolicy(event.target.value)} maxLength={2000} rows={3} placeholder="Informações de pagamento, alergênicos, privacidade ou outras políticas." className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+            </section>
+
+            <section className="space-y-2 rounded-md border border-black/10 p-3">
+              <p className="text-[12px] font-semibold">Automação n8n</p>
+              <p className="text-[10px] text-stone-500">O endpoint recebe eventos de pedidos e solicitações de conta. A URL fica privada e é usada somente pelo backend.</p>
+              <label className="block text-[11px] font-medium text-stone-600">URL do webhook<input type="url" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} maxLength={2048} placeholder="https://n8n.exemplo.com/webhook/restaurant" className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+              <p className="text-[10px] text-stone-500">Evolution API deve ser configurada no servidor; a chave nunca é exposta nesta tela.</p>
+            </section>
 
             <section className="space-y-3 rounded-md border border-black/10 p-3">
               <div>
@@ -136,12 +246,7 @@ function RestaurantBranding() {
               )}
             </section>
 
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-black/15 px-3 py-3 text-[12px] font-medium text-stone-600 transition hover:border-brand/40 hover:bg-emerald-50/40">
-              <ImagePlus className="size-4" /> Enviar arquivo da logo (PNG, JPG ou WebP · até 1 MB)
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} className="sr-only" />
-            </label>
-
-            <button type="submit" className="rounded-md bg-brand px-4 py-2.5 text-[12px] font-semibold text-white hover:bg-brand-deep">Salvar personalização</button>
+            <button type="submit" disabled={saving} className="rounded-md bg-brand px-4 py-2.5 text-[12px] font-semibold text-white hover:bg-brand-deep disabled:cursor-wait disabled:opacity-60">{saving ? "Salvando..." : "Salvar personalização"}</button>
           </form>
         </Card>
 
@@ -153,7 +258,7 @@ function RestaurantBranding() {
             </div>
             <div className="mt-4 rounded-lg bg-stone-50 p-4">
               <div className="flex items-center gap-3">
-                {draft.logoUrl ? <img src={draft.logoUrl} alt="Logo do restaurante" className="size-12 rounded-md object-contain" /> : <span className="grid size-12 place-items-center rounded-md bg-white text-stone-400 ring-1 ring-black/5"><Store className="size-5" /></span>}
+                {logoImage || draft.logoUrl ? <img src={apiAssetUrl(logoImage || draft.logoUrl)} alt="Logo do restaurante" className="size-12 rounded-md object-contain" /> : <span className="grid size-12 place-items-center rounded-md bg-white text-stone-400 ring-1 ring-black/5"><Store className="size-5" /></span>}
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-semibold">{tenant.restaurant}</p>
                   <p className="text-[11px] text-stone-500">Cardápio digital</p>

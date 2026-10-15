@@ -16,6 +16,7 @@ export async function listTables(restaurantId: number) {
       createdAt: restaurantTables.createdAt,
       sessionId: tableSessions.id,
       sessionOpenedAt: tableSessions.openedAt,
+      closeRequestedAt: tableSessions.closeRequestedAt,
     })
     .from(restaurantTables)
     .leftJoin(
@@ -114,14 +115,144 @@ export async function getOpenSession(tableId: number, restaurantId: number) {
 }
 
 export async function ensureOpenSession(tableId: number, restaurantId: number) {
-  const existing = await getOpenSession(tableId, restaurantId);
-  if (existing) return existing;
+  return db.transaction(async (tx) => {
+    const [table] = await tx
+      .select({ id: restaurantTables.id })
+      .from(restaurantTables)
+      .where(and(eq(restaurantTables.id, tableId), eq(restaurantTables.restaurantId, restaurantId)))
+      .for("update")
+      .limit(1);
+    if (!table) return null;
 
-  const [row] = await db
-    .insert(tableSessions)
-    .values({ restaurantId, tableId, status: "ABERTA" })
-    .returning();
-  return row;
+    const [existing] = await tx
+      .select()
+      .from(tableSessions)
+      .where(
+        and(
+          eq(tableSessions.tableId, tableId),
+          eq(tableSessions.restaurantId, restaurantId),
+          eq(tableSessions.status, "ABERTA"),
+        ),
+      )
+      .limit(1);
+    if (existing) return existing;
+
+    const [row] = await tx
+      .insert(tableSessions)
+      .values({ restaurantId, tableId, status: "ABERTA" })
+      .returning();
+    return row ?? null;
+  });
+}
+
+/** Cria uma mesa pública do QR, se ainda não existir, e reaproveita sua comanda aberta. */
+export async function ensurePublicTableSession(restaurantId: number, label: string) {
+  return db.transaction(async (tx) => {
+    let [table] = await tx
+      .select()
+      .from(restaurantTables)
+      .where(and(eq(restaurantTables.restaurantId, restaurantId), eq(restaurantTables.label, label)))
+      .for("update")
+      .limit(1);
+
+    if (!table) {
+      [table] = await tx
+        .insert(restaurantTables)
+        .values({ restaurantId, label, seats: 4, isActive: true })
+        .onConflictDoNothing()
+        .returning();
+      if (!table) {
+        [table] = await tx
+          .select()
+          .from(restaurantTables)
+          .where(and(eq(restaurantTables.restaurantId, restaurantId), eq(restaurantTables.label, label)))
+          .for("update")
+          .limit(1);
+      }
+    }
+
+    if (!table || !table.isActive) return null;
+    const [existing] = await tx
+      .select()
+      .from(tableSessions)
+      .where(
+        and(
+          eq(tableSessions.tableId, table.id),
+          eq(tableSessions.restaurantId, restaurantId),
+          eq(tableSessions.status, "ABERTA"),
+        ),
+      )
+      .limit(1);
+    if (existing) return { table, session: existing };
+
+    const [session] = await tx
+      .insert(tableSessions)
+      .values({ restaurantId, tableId: table.id, status: "ABERTA" })
+      .returning();
+    return session ? { table, session } : null;
+  });
+}
+
+/** Dados mínimos para a comanda compartilhada; não expõe telefone nem dados privados. */
+export async function getPublicTableSession(restaurantId: number, label: string) {
+  const table = await getTableByLabel(restaurantId, label);
+  if (!table) return { session: null, orders: [], total: 0 };
+
+  const [session] = await db
+    .select()
+    .from(tableSessions)
+    .where(
+      and(
+        eq(tableSessions.tableId, table.id),
+        eq(tableSessions.restaurantId, restaurantId),
+        eq(tableSessions.status, "ABERTA"),
+      ),
+    )
+    .limit(1);
+  if (!session) return { session: null, orders: [], total: 0 };
+
+  const sessionOrders = await db
+    .select({
+      id: orders.id,
+      itemsJson: orders.itemsJson,
+      total: orders.total,
+      status: orders.status,
+      createdAt: orders.createdAt,
+      paymentMethod: orders.paymentMethod,
+    })
+    .from(orders)
+    .where(and(eq(orders.sessionId, session.id), eq(orders.restaurantId, restaurantId)))
+    .orderBy(asc(orders.createdAt));
+
+  return {
+    session: {
+      id: session.id,
+      tableLabel: table.label,
+      openedAt: session.openedAt,
+      closeRequestedAt: session.closeRequestedAt,
+    },
+    orders: sessionOrders,
+    total: sessionOrders.reduce((sum, order) => sum + Number(order.total), 0),
+  };
+}
+
+export async function requestTableClosure(restaurantId: number, label: string) {
+  const table = await getTableByLabel(restaurantId, label);
+  if (!table) return null;
+
+  const [session] = await db
+    .update(tableSessions)
+    .set({ closeRequestedAt: new Date() })
+    .where(
+      and(
+        eq(tableSessions.tableId, table.id),
+        eq(tableSessions.restaurantId, restaurantId),
+        eq(tableSessions.status, "ABERTA"),
+      ),
+    )
+    .returning({ id: tableSessions.id });
+  if (!session) return null;
+  return getPublicTableSession(restaurantId, label);
 }
 
 /** Consumo detalhado de uma sessão, usado pelo caixa. */
@@ -148,20 +279,45 @@ export async function closeSession(
   restaurantId: number,
   input: CloseSessionInput,
 ) {
-  const bill = await getSessionBill(sessionId, restaurantId);
-  if (!bill) return null;
+  return db.transaction(async (tx) => {
+    const [session] = await tx
+    .select()
+    .from(tableSessions)
+    .where(
+      and(
+        eq(tableSessions.id, sessionId),
+        eq(tableSessions.restaurantId, restaurantId),
+        eq(tableSessions.status, "ABERTA"),
+      ),
+    )
+    .for("update")
+    .limit(1);
+    if (!session) return null;
 
-  const [row] = await db
+    const sessionOrders = await tx
+    .select({ total: orders.total })
+    .from(orders)
+    .where(and(eq(orders.sessionId, sessionId), eq(orders.restaurantId, restaurantId)));
+    const total = sessionOrders.reduce((sum, order) => sum + Number(order.total), 0);
+    const [row] = await tx
     .update(tableSessions)
     .set({
       status: "FECHADA",
       paymentMethod: input.paymentMethod,
-      total: bill.total.toFixed(2),
+      total: total.toFixed(2),
       closedAt: new Date(),
+      closeRequestedAt: null,
     })
-    .where(and(eq(tableSessions.id, sessionId), eq(tableSessions.restaurantId, restaurantId)))
+    .where(
+      and(
+        eq(tableSessions.id, sessionId),
+        eq(tableSessions.restaurantId, restaurantId),
+        eq(tableSessions.status, "ABERTA"),
+      ),
+    )
     .returning();
-  return row ?? null;
+    return row ?? null;
+  });
 }
 
 /** Mesas abertas com consumo — tela do Caixa. */
@@ -170,6 +326,7 @@ export async function listOpenSessions(restaurantId: number) {
     .select({
       sessionId: tableSessions.id,
       openedAt: tableSessions.openedAt,
+      closeRequestedAt: tableSessions.closeRequestedAt,
       tableId: restaurantTables.id,
       tableLabel: restaurantTables.label,
     })

@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Tag, TicketPercent } from "lucide-react";
-import { useState } from "react";
+import { ImagePlus, Tag, TicketPercent, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AppShell, Card } from "@/components/app-shell";
+import { api, apiAssetUrl, type ApiPromotion } from "@/lib/api";
+import { readImageAsDataUrl } from "@/lib/image-upload";
 import { brl } from "@/lib/mock";
 import { useTenantOperations } from "@/lib/operations";
 import { useTenantCoupons, type CouponKind } from "@/lib/coupon-store";
@@ -21,6 +23,12 @@ function Promotions() {
   const slug = tenant?.restaurantSlug ?? "pizzaria-vulcao";
   const { coupons, update } = useTenantCoupons(slug);
   const { operations } = useTenantOperations(slug);
+  const [banners, setBanners] = useState<ApiPromotion[]>([]);
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [bannerDescription, setBannerDescription] = useState("");
+  const [bannerImage, setBannerImage] = useState("");
+  const [loadingBanners, setLoadingBanners] = useState(true);
+  const [savingBanner, setSavingBanner] = useState(false);
   const [form, setForm] = useState({
     code: "",
     kind: "percentual" as CouponKind,
@@ -29,6 +37,17 @@ function Promotions() {
     expiresAt: localInputDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
     maxUses: "100",
   });
+
+  useEffect(() => {
+    let active = true;
+    void api.listPromotions()
+      .then((items) => { if (active) setBanners(items); })
+      .catch((error: unknown) => {
+        if (active) showToast({ title: "Não foi possível carregar os banners", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+      })
+      .finally(() => { if (active) setLoadingBanners(false); });
+    return () => { active = false; };
+  }, [slug]);
 
   if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
 
@@ -67,12 +86,87 @@ function Promotions() {
     showToast({ title: "Cupom criado", description: `${code} está disponível para os clientes.`, variant: "success" });
   }
 
+  async function createBanner(event: React.FormEvent) {
+    event.preventDefault();
+    if (!bannerImage) {
+      showToast({ title: "Escolha uma imagem", description: "O banner promocional precisa ter uma imagem.", variant: "warning" });
+      return;
+    }
+    setSavingBanner(true);
+    try {
+      await api.createPromotion({
+        title: bannerTitle.trim(),
+        description: bannerDescription.trim() || undefined,
+        image: bannerImage,
+      });
+      setBanners(await api.listPromotions());
+      setBannerTitle("");
+      setBannerDescription("");
+      setBannerImage("");
+      showToast({ title: "Banner publicado", description: "A promoção já pode aparecer no cardápio público.", variant: "success" });
+    } catch (error) {
+      showToast({ title: "Não foi possível salvar o banner", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+    } finally {
+      setSavingBanner(false);
+    }
+  }
+
+  async function removeBanner(id: number) {
+    try {
+      await api.deletePromotion(id);
+      setBanners((current) => current.filter((banner) => banner.id !== id));
+      showToast({ title: "Banner removido", description: "Ele não será mais exibido no cardápio.", variant: "success" });
+    } catch (error) {
+      showToast({ title: "Não foi possível remover o banner", description: error instanceof Error ? error.message : "Tente novamente.", variant: "warning" });
+    }
+  }
+
   const couponKindLabel = (kind: CouponKind) => kind === "percentual" ? "Desconto percentual" : kind === "valor-fixo" ? "Desconto em reais" : "Frete grátis";
   const couponValueLabel = (kind: CouponKind, value: number) => kind === "percentual" ? `${value}%` : kind === "valor-fixo" ? brl(value) : "Entrega grátis";
 
   return (
     <AppShell tenant={tenant} title="Promoções / Cupons" subtitle={`${tenant.restaurant} · campanhas e impacto financeiro`}>
       <div className="space-y-4">
+        <Card className="overflow-hidden">
+          <div className="border-b border-black/5 px-4 py-3">
+            <p className="text-[13px] font-semibold">Banners do cardápio</p>
+            <p className="mt-1 text-[11px] text-stone-500">Imagens promocionais persistidas e exibidas no carrossel público do restaurante.</p>
+          </div>
+          <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {loadingBanners ? <p className="text-[12px] text-stone-500">Carregando banners…</p> : null}
+              {!loadingBanners && banners.length === 0 ? <p className="text-[12px] text-stone-500">Ainda não há banners. Cadastre um para destacá-lo no cardápio.</p> : null}
+              {banners.map((banner) => (
+                <article key={banner.id} className="overflow-hidden rounded-lg border border-black/10">
+                  <img src={apiAssetUrl(banner.imageUrl)} alt={banner.title ?? "Banner promocional"} className="h-32 w-full object-cover" />
+                  <div className="flex items-start justify-between gap-2 p-3">
+                    <div className="min-w-0"><p className="truncate text-[12px] font-semibold">{banner.title}</p><p className="mt-1 line-clamp-2 text-[10px] text-stone-500">{banner.description}</p></div>
+                    <button type="button" onClick={() => void removeBanner(banner.id)} aria-label={`Remover banner ${banner.title}`} className="rounded-md p-2 text-stone-500 hover:bg-red-50 hover:text-red-700"><Trash2 className="size-4" /></button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <form onSubmit={(event) => void createBanner(event)} className="space-y-3 rounded-lg bg-stone-50 p-3">
+              <p className="text-[12px] font-semibold">Novo banner</p>
+              <label className="block text-[11px] font-medium text-stone-600">Título<input required maxLength={120} value={bannerTitle} onChange={(event) => setBannerTitle(event.target.value)} placeholder="Oferta da semana" className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+              <label className="block text-[11px] font-medium text-stone-600">Descrição curta<input maxLength={280} value={bannerDescription} onChange={(event) => setBannerDescription(event.target.value)} placeholder="Desconto especial em pizzas selecionadas" className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" /></label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-black/15 bg-white px-3 py-3 text-[11px] font-medium text-stone-600 hover:border-brand/40">
+                <ImagePlus className="size-4" /> Enviar imagem · JPG, PNG ou WebP · até 1 MB
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  void readImageAsDataUrl(file).then(setBannerImage).catch((error: unknown) => {
+                    showToast({ title: "Imagem não aceita", description: error instanceof Error ? error.message : "Escolha uma imagem válida.", variant: "warning" });
+                  });
+                }} />
+              </label>
+              {bannerImage ? <img src={bannerImage} alt="Prévia do novo banner" className="h-32 w-full rounded object-cover" /> : null}
+              <button type="submit" disabled={savingBanner} className="w-full rounded-md bg-brand px-3 py-2.5 text-[12px] font-semibold text-white disabled:opacity-60">{savingBanner ? "Publicando…" : "Publicar banner"}</button>
+            </form>
+          </div>
+        </Card>
+
         <div className="grid gap-3 sm:grid-cols-3">
           {[
             ["Vendas com cupom", String(couponOrders.length)],

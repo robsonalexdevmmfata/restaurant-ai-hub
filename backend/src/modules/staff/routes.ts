@@ -8,7 +8,7 @@ import { users } from "../../db/schema.js";
 import { isUniqueViolation, parseId } from "../../lib/helpers.js";
 import { getAuthUser, requireJwt } from "../../middleware/auth.js";
 
-const roleSchema = z.enum(["owner", "gerente", "atendente", "cozinha", "caixa"]);
+const roleSchema = z.enum(["gerente", "atendente", "cozinha", "caixa", "motoboy"]);
 
 const createUserSchema = z.object({
   name: z.string().min(2).max(255),
@@ -42,12 +42,15 @@ export async function staffRoutes(app: FastifyInstance) {
     return role === "owner" || role === "gerente";
   }
 
-  app.get("/me/users", async (request) => {
-    const { restaurantId } = getAuthUser(request);
+  app.get("/me/users", async (request, reply) => {
+    const auth = getAuthUser(request);
+    if (!canManage(auth.role)) {
+      return reply.status(403).send({ error: "Sem permissão" });
+    }
     return db
       .select(safeColumns)
       .from(users)
-      .where(eq(users.restaurantId, restaurantId))
+      .where(eq(users.restaurantId, auth.restaurantId))
       .orderBy(asc(users.createdAt));
   });
 
@@ -58,6 +61,9 @@ export async function staffRoutes(app: FastifyInstance) {
     const parsed = createUserSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
+    }
+    if (auth.role === "gerente" && parsed.data.role === "gerente") {
+      return reply.status(403).send({ error: "Gerentes não podem criar outros acessos de gerente" });
     }
 
     try {
@@ -92,6 +98,25 @@ export async function staffRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
     }
 
+    const [target] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.restaurantId, auth.restaurantId)))
+      .limit(1);
+    if (!target) return reply.status(404).send({ error: "User not found" });
+    if (target.role === "owner") {
+      return reply.status(409).send({ error: "O acesso do proprietário não pode ser alterado por esta tela" });
+    }
+    if (
+      auth.role === "gerente" &&
+      (target.role === "gerente" || parsed.data.role === "gerente")
+    ) {
+      return reply.status(403).send({ error: "Gerentes não podem administrar outros acessos de gerente" });
+    }
+    if (userId === auth.sub && (parsed.data.role !== undefined || parsed.data.isActive === false)) {
+      return reply.status(409).send({ error: "Você não pode alterar seu próprio perfil ou desativar seu acesso" });
+    }
+
     const [row] = await db
       .update(users)
       .set({
@@ -117,6 +142,18 @@ export async function staffRoutes(app: FastifyInstance) {
     if (!userId) return reply.status(400).send({ error: "Invalid user id" });
     if (userId === auth.sub) {
       return reply.status(409).send({ error: "Você não pode remover o próprio acesso" });
+    }
+    const [target] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.restaurantId, auth.restaurantId)))
+      .limit(1);
+    if (!target) return reply.status(404).send({ error: "User not found" });
+    if (target.role === "owner") {
+      return reply.status(409).send({ error: "O acesso do proprietário não pode ser removido por esta tela" });
+    }
+    if (auth.role === "gerente" && target.role === "gerente") {
+      return reply.status(403).send({ error: "Gerentes não podem remover outros acessos de gerente" });
     }
 
     const [row] = await db

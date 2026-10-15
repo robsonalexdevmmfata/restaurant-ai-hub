@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Printer, QrCode } from "lucide-react";
-import { useEffect } from "react";
+import { Copy, Printer, QrCode } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AppShell, Card } from "@/components/app-shell";
 import { createStaffActivity, updateTenantOperations, useTenantOperations, type RestaurantTableStatus } from "@/lib/operations";
 import { hasPublicApi, publicApiUrl } from "@/lib/public-api";
@@ -13,6 +13,43 @@ const statusClasses: Record<RestaurantTableStatus, string> = {
   "Comanda Aberta": "bg-sky-100 text-sky-700",
   "Aguardando Pagamento": "bg-rose-100 text-rose-700",
 };
+
+function qrImageUrl(value: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=12&format=png&ecc=H&data=${encodeURIComponent(value)}`;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] ?? character);
+}
+
+function QrPreview({ url, label }: { url: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="grid size-40 place-items-center overflow-hidden rounded-xl border border-stone-200 bg-white p-2 shadow-sm">
+      {failed ? (
+        <div className="text-center text-brand">
+          <QrCode className="mx-auto size-10" />
+          <p className="mt-2 text-[10px] text-stone-500">Prévia indisponível</p>
+        </div>
+      ) : (
+        <img
+          src={qrImageUrl(url)}
+          alt={`QR Code escaneável para ${label}`}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="size-full object-contain"
+        />
+      )}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/mesas")({
   component: TablesView,
@@ -96,13 +133,58 @@ function TablesView() {
   }
 
   function tableMenuUrl(tableId: number) {
-    return `${window.location.origin}/m/${tenant?.restaurantSlug ?? slug}/mesa/${tableId}`;
+    const tableLabel = `Mesa ${tableId}`;
+    const appUrl = import.meta.env.VITE_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+      (typeof window === "undefined" ? "" : window.location.origin);
+    return `${appUrl}/r/${encodeURIComponent(tenant?.restaurantSlug ?? slug)}?mesa=${encodeURIComponent(tableLabel)}`;
   }
 
   function printQr(tableId: number) {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableMenuUrl(tableId))}&size=420x420`;
-    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    const destination = tableMenuUrl(tableId);
+    const qr = qrImageUrl(destination);
+    const popup = window.open("", "_blank", "width=640,height=820");
     if (!popup) showToast({ title: "Pop-up bloqueado", description: "Permita pop-ups para abrir o QR Code da mesa.", variant: "warning" });
+    if (!popup) return;
+
+    popup.document.write(`<!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>${escapeHtml(tenant.restaurant)} · Mesa ${tableId}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 32px; color: #17211c; font: 16px Arial, sans-serif; text-align: center; }
+            main { max-width: 520px; margin: 0 auto; padding: 32px; border: 1px solid #e7e9e6; border-radius: 24px; }
+            img { display: block; width: min(100%, 360px); height: auto; margin: 24px auto; }
+            h1 { margin: 0; font-size: 28px; }
+            p { color: #66716b; line-height: 1.5; }
+            .url { overflow-wrap: anywhere; font-size: 12px; }
+            button { margin-top: 12px; padding: 12px 20px; border: 0; border-radius: 10px; background: #138b4c; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+            @media print { body { padding: 0; } main { border: 0; } button { display: none; } }
+          </style>
+        </head>
+        <body>
+          <main>
+            <p>${escapeHtml(tenant.restaurant)}</p>
+            <h1>Mesa ${String(tableId).padStart(2, "0")}</h1>
+            <img src="${escapeHtml(qr)}" alt="QR Code para abrir o cardápio da mesa ${tableId}">
+            <p>Escaneie com a câmera do celular para abrir o cardápio e fazer seu pedido.</p>
+            <p class="url">${escapeHtml(destination)}</p>
+            <button onclick="window.print()">Imprimir QR Code</button>
+          </main>
+        </body>
+      </html>`);
+    popup.document.close();
+  }
+
+  async function copyTableMenuUrl(tableId: number) {
+    try {
+      await navigator.clipboard.writeText(tableMenuUrl(tableId));
+      showToast({ title: "Link copiado", description: `O link da Mesa ${tableId} está pronto para compartilhar.`, variant: "success" });
+    } catch {
+      showToast({ title: "Não foi possível copiar", description: "Verifique a permissão de área de transferência do navegador.", variant: "warning" });
+    }
   }
 
   return (
@@ -143,27 +225,7 @@ function TablesView() {
                 </div>
 
                 <div className="mt-4 flex flex-col items-center rounded-lg bg-stone-50 px-4 py-5 ring-1 ring-black/5">
-                  <div
-                    role="img"
-                    aria-label={`Pré-visualização do QR Code da mesa ${table.id}`}
-                    className="relative grid size-36 place-items-center rounded-xl border border-stone-200 bg-white shadow-sm"
-                  >
-                    <span className="absolute left-3 top-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
-                      <span className="size-2.5 rounded-sm bg-ink" />
-                    </span>
-                    <span className="absolute right-3 top-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
-                      <span className="size-2.5 rounded-sm bg-ink" />
-                    </span>
-                    <span className="absolute bottom-3 left-3 grid size-7 place-items-center rounded-md border-[3px] border-ink bg-white">
-                      <span className="size-2.5 rounded-sm bg-ink" />
-                    </span>
-                    <span className="absolute bottom-5 right-5 size-2 rounded-sm bg-brand/30" />
-                    <span className="absolute right-9 top-12 size-1.5 rounded-sm bg-stone-300" />
-                    <span className="absolute bottom-10 right-10 size-1.5 rounded-sm bg-stone-300" />
-                    <span className="relative grid size-12 place-items-center rounded-lg bg-emerald-50 text-brand ring-1 ring-brand/15">
-                      <QrCode className="size-7" />
-                    </span>
-                  </div>
+                  <QrPreview url={tableMenuUrl(table.id)} label={`Mesa ${table.id}`} />
                   <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-stone-500">
                     QR Code · Mesa {String(table.id).padStart(2, "0")}
                   </p>
@@ -178,15 +240,17 @@ function TablesView() {
                     onClick={() => printQr(table.id)}
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-[12px] font-medium text-white hover:bg-brand-deep"
                   >
-                    <QrCode className="size-4" />
-                    QR Code
+                    <Printer className="size-4" />
+                    Imprimir QR
                   </button>
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="inline-flex items-center justify-center rounded-md border border-black/5 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
+                    onClick={() => void copyTableMenuUrl(table.id)}
+                    aria-label={`Copiar link da Mesa ${table.id}`}
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-black/5 bg-white px-3 py-2 text-[12px] font-medium text-stone-700 hover:bg-stone-50"
                   >
-                    <Printer className="size-4" />
+                    <Copy className="size-4" />
+                    Copiar link
                   </button>
                 </div>
               </Card>
