@@ -112,13 +112,6 @@ function CounterPdv() {
       .filter((line) => line.quantity > 0));
   }
 
-  function finishSale() {
-    if (!cart.length) return;
-    if (!operations.cashShift.isOpen) {
-      showToast({ title: "Caixa fechado", description: "Abra o turno antes de registrar uma venda.", variant: "warning" });
-      return;
-    }
-
     async function closeTableSession(session: ApiSession) {
       const confirmed = confirmedSessionPayments[session.sessionId];
       if (!confirmed) {
@@ -141,6 +134,13 @@ function CounterPdv() {
       audioContext.current = context;
       setAlertSoundEnabled(true);
     }
+  function finishSale() {
+    if (!cart.length) return;
+    if (!operations.cashShift.isOpen) {
+      showToast({ title: "Caixa fechado", description: "Abra o turno antes de registrar uma venda.", variant: "warning" });
+      return;
+    }
+
     if (paymentMethod === "Dinheiro" && tendered < subtotal) {
       showToast({ title: "Valor insuficiente", description: "Informe o valor recebido para calcular o troco.", variant: "warning" });
       return;

@@ -96,7 +96,7 @@ function Promotions() {
     try {
       await api.createPromotion({
         title: bannerTitle.trim(),
-        description: bannerDescription.trim() || undefined,
+        ...(bannerDescription.trim() ? { description: bannerDescription.trim() } : {}),
         image: bannerImage,
       });
       setBanners(await api.listPromotions());

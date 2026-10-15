@@ -182,4 +182,8 @@
 .menu-button:hover { filter: brightness(0.94); }
 .menu-soft { background: color-mix(in oklab, var(--menu-brand, var(--color-brand)) 10%, var(--card)); }
 .menu-price { color: var(--menu-brand, var(--color-brand)); }
+.public-store .menu-button { background: var(--menu-brand); }
+.public-store { letter-spacing: 0; }
+.public-store .bg-brand { background-color: var(--menu-brand); }
+.public-store .text-brand { color: var(--menu-brand); }
 @media (prefers-reduced-motion: reduce) { .fade-in, .skeleton { animation: none; } }

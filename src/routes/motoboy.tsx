@@ -267,7 +267,7 @@ function DeliveryView() {
             fee,
             method,
             orderAmountCollected: orderCollected,
-            orderPaymentMethod: orderCollected > 0 ? orderPaymentMethod : undefined,
+            orderPaymentMethod: orderCollected > 0 && orderPaymentMethod !== "Não recebido" ? orderPaymentMethod : undefined,
             completedAt: new Date().toISOString(),
           },
         ],

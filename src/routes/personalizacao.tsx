@@ -58,7 +58,7 @@ function RestaurantBranding() {
   if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const publicUrl = `${origin}/cardapio/${tenant.restaurantSlug}`;
+  const publicUrl = `${origin}/r/${tenant.restaurantSlug}`;
 
   async function readBrandImage(event: React.ChangeEvent<HTMLInputElement>, kind: "logo" | "favicon" | "cover") {
     const file = event.target.files?.[0];

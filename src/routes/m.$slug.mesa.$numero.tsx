@@ -105,7 +105,7 @@ function PublicTableMenu() {
             description: product.description ?? "",
             price: Number(product.price),
             category: product.category ?? "Outros",
-            imageUrl: product.imageUrl ? apiAssetUrl(product.imageUrl) : undefined,
+            imageUrl: product.imageUrl ? apiAssetUrl(product.imageUrl) : "",
             available: product.status === "DISPONIVEL",
           })));
         }
@@ -253,6 +253,7 @@ function PublicTableMenu() {
       }
       if (index < 0) return current;
       const target = current[index];
+      if (!target) return current;
       const quantity = target.quantity + delta;
       if (quantity <= 0) return current.filter((line) => line.id !== target.id);
       return current.map((line) => line.id === target.id ? { ...line, quantity } : line);

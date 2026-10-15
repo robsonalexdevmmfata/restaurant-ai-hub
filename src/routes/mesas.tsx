@@ -134,12 +134,13 @@ function TablesView() {
 
   function tableMenuUrl(tableId: number) {
     const tableLabel = `Mesa ${tableId}`;
-    const appUrl = import.meta.env.VITE_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    const appUrl = import.meta.env['VITE_PUBLIC_APP_URL']?.replace(/\/$/, "") ||
       (typeof window === "undefined" ? "" : window.location.origin);
     return `${appUrl}/r/${encodeURIComponent(tenant?.restaurantSlug ?? slug)}?mesa=${encodeURIComponent(tableLabel)}`;
   }
 
   function printQr(tableId: number) {
+    if (!tenant) return;
     const destination = tableMenuUrl(tableId);
     const qr = qrImageUrl(destination);
     const popup = window.open("", "_blank", "width=640,height=820");
