@@ -1,163 +1,275 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { CircleAlert, LoaderCircle, MessageCircle, QrCode } from "lucide-react";
 
 import { AppShell, Card, Skeleton } from "@/components/app-shell";
+import { Btn } from "@/components/kit";
+import { ApiError, api, getToken, type ApiAiIntegrationStatus } from "@/lib/api";
+import { showToast } from "@/lib/toast";
 import { useRequireTenant } from "@/lib/use-require-tenant";
 
 export const Route = createFileRoute("/conexao")({
   head: () => ({
     meta: [
-      { title: "Conexão WhatsApp · RestauranteAI" },
-      { name: "description", content: "Status da instância do WhatsApp, número conectado e leitura do QR Code." },
-      { property: "og:title", content: "Conexão WhatsApp · RestauranteAI" },
-      { property: "og:description", content: "Conecte o WhatsApp do restaurante ao agente de IA." },
+      { title: "Conexão WhatsApp e IA · RestauranteAI" },
+      {
+        name: "description",
+        content: "Configure o atendimento do WhatsApp com Evolution API e Grok.",
+      },
     ],
   }),
   component: Conexao,
 });
 
-/** Deterministic pseudo-QR pattern for the simulated pairing screen. */
-const cells = Array.from({ length: 25 * 25 }, (_, i) => {
-  const x = i % 25;
-  const y = Math.floor(i / 25);
-  const corner = (x < 7 && y < 7) || (x > 17 && y < 7) || (x < 7 && y > 17);
-  if (corner) return (x === 0 || x === 6 || y === 0 || y === 6 || (x > 1 && x < 5 && y > 1 && y < 5)) && true;
-  return (x * 7 + y * 13 + ((x * y) % 5)) % 3 === 0;
-});
-
 function Conexao() {
   const { tenant, loading } = useRequireTenant("owner");
-  const [status, setStatus] = useState<"conectado" | "desconectado" | "pareando">("conectado");
-  const [booting, setBooting] = useState(true);
+  const [status, setStatus] = useState<ApiAiIntegrationStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [creatingInstance, setCreatingInstance] = useState(false);
+  const [pairingQr, setPairingQr] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState("");
+  const [error, setError] = useState("");
+  const hasApiSession = Boolean(getToken());
 
   useEffect(() => {
-    const t = window.setTimeout(() => setBooting(false), 700);
-    return () => window.clearTimeout(t);
+    if (tenant && !restaurantName) setRestaurantName(tenant.restaurant);
+  }, [restaurantName, tenant]);
+
+  const refreshStatus = useCallback(async () => {
+    const result = await api.getAiIntegrationStatus();
+    setStatus(result);
+    return result;
   }, []);
 
   useEffect(() => {
-    if (status !== "pareando") return;
-    const t = window.setTimeout(() => setStatus("conectado"), 3000);
-    return () => window.clearTimeout(t);
-  }, [status]);
+    let active = true;
+    refreshStatus()
+      .then((result) => {
+        if (active) setStatus(result);
+      })
+      .catch((cause: unknown) => {
+        if (!active) return;
+        setError(
+          cause instanceof ApiError && cause.status === 401
+            ? "Para conectar o WhatsApp, entre com a conta real do proprietário. A conta de demonstração não pode criar instâncias."
+            : cause instanceof ApiError && cause.status === 403
+              ? "Somente o proprietário pode conectar o WhatsApp deste restaurante."
+              : "Não foi possível carregar o status do WhatsApp. Tente novamente.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoadingStatus(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshStatus]);
 
-  if (loading || !tenant) return <div className="min-h-screen bg-stone-100" />;
+  useEffect(() => {
+    if (!pairingQr || status?.evolutionInstanceConnected) return;
+    const timer = window.setInterval(() => {
+      void refreshStatus()
+        .then((result) => {
+          if (result.evolutionInstanceConnected) {
+            setPairingQr(null);
+            showToast({
+              title: "WhatsApp conectado",
+              description: "A instância Evolution foi pareada com sucesso.",
+              variant: "success",
+            });
+          }
+        })
+        .catch((cause: unknown) => {
+          setError(
+            cause instanceof ApiError && cause.status === 401
+              ? "Sua sessão expirou. Entre novamente com a conta real do proprietário."
+              : "Não foi possível atualizar o estado da conexão.",
+          );
+        });
+    }, 3_000);
+    return () => window.clearInterval(timer);
+  }, [pairingQr, refreshStatus, status?.evolutionInstanceConnected]);
 
-  const badge =
-    status === "conectado"
-      ? "bg-brand/10 text-brand"
-      : status === "pareando"
-        ? "bg-amber-100 text-amber-700"
-        : "bg-stone-100 text-stone-500";
+  if (loading || !tenant) {
+    return (
+      <div className="min-h-screen bg-stone-100 p-6">
+        <Skeleton className="h-[70vh] w-full" />
+      </div>
+    );
+  }
+
+  async function createOrConnectInstance() {
+    setCreatingInstance(true);
+    setError("");
+    setPairingQr(null);
+    try {
+      const result = await api.createEvolutionInstance(restaurantName);
+      const latestStatus = await refreshStatus();
+      setPairingQr(
+        result.state === "open" || latestStatus.evolutionInstanceConnected ? null : result.qrCode,
+      );
+      showToast({
+        title: result.created ? "WhatsApp preparado" : "WhatsApp pronto para parear",
+        description:
+          result.state === "open"
+            ? "Este WhatsApp já está conectado."
+            : result.qrCode
+              ? "Escaneie o QR Code com o WhatsApp do restaurante."
+              : "A conexão foi iniciada. Tente gerar o QR Code novamente em alguns segundos.",
+        variant: "success",
+      });
+      if (!result.qrCode && result.state !== "open" && !latestStatus.evolutionInstanceConnected) {
+        setError(
+          "O QR Code ainda está sendo preparado. Aguarde alguns segundos e tente novamente.",
+        );
+      }
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError && cause.status === 401
+          ? "Para criar a conexão, entre com a conta real do proprietário. A conta de demonstração não tem acesso à Evolution."
+          : cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível preparar a conexão do WhatsApp. Tente novamente.",
+      );
+    } finally {
+      setCreatingInstance(false);
+    }
+  }
 
   return (
-    <AppShell tenant={tenant} title="Conexão WhatsApp" subtitle={`${tenant.restaurant} · Evolution API`}>
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] font-semibold">Instância</p>
-            <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${badge}`}>
-              {status === "conectado" ? "Conectado" : status === "pareando" ? "Aguardando leitura" : "Desconectado"}
-            </span>
+    <AppShell
+      tenant={tenant}
+      title="Conexão WhatsApp e IA"
+      subtitle="Conecte o WhatsApp do restaurante escaneando um QR Code."
+    >
+      <div className="mx-auto grid max-w-3xl gap-5">
+        {error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+          >
+            <CircleAlert className="mt-0.5 size-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Não foi possível conectar o WhatsApp</p>
+              <p className="mt-1">{error}</p>
+            </div>
           </div>
+        ) : null}
 
-          <div className="mt-4 grid place-items-center rounded-lg bg-stone-50 p-5 ring-1 ring-black/5">
-            {booting ? (
-              <Skeleton className="size-44" />
-            ) : status === "conectado" ? (
-              <div className="py-8 text-center">
-                <div className="mx-auto grid size-12 place-items-center rounded-full bg-brand/10 text-[18px] text-brand">
-                  ✓
-                </div>
-                <p className="mt-3 text-[13px] font-medium">WhatsApp conectado</p>
-                <p className="text-[12px] text-stone-500">A IA está respondendo os clientes agora.</p>
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
+                <MessageCircle className="size-6" />
               </div>
-            ) : (
-              <div className="text-center">
-                <div className="mx-auto grid size-44 grid-cols-25 gap-px bg-white p-2 ring-1 ring-black/10">
-                  {cells.map((on, i) => (
-                    <span key={i} className={on ? "bg-ink" : "bg-white"} />
-                  ))}
-                </div>
-                <p className="mt-3 text-[12px] text-stone-500 text-pretty">
-                  Abra o WhatsApp do restaurante → Aparelhos conectados → Conectar aparelho.
+              <div>
+                <h2 className="font-display text-lg font-semibold">WhatsApp do restaurante</h2>
+                <p className="mt-1 text-sm text-stone-600">
+                  Conecte o número usado para receber mensagens e atender seus clientes.
                 </p>
+                {status ? (
+                  <p
+                    className={`mt-2 text-sm font-medium ${
+                      status.evolutionInstanceConnected ? "text-emerald-700" : "text-amber-800"
+                    }`}
+                  >
+                    {status.evolutionInstanceConnected
+                      ? "WhatsApp conectado"
+                      : "WhatsApp aguardando pareamento"}
+                  </p>
+                ) : null}
               </div>
-            )}
-          </div>
-
-          <dl className="mt-4 space-y-2 text-[12px]">
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Número</dt>
-              <dd className="font-medium">+55 11 98822-0412</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Instância</dt>
-              <dd className="font-medium">vulcao-prod-01</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Última sincronização</dt>
-              <dd className="font-medium">há 2 minutos</dd>
-            </div>
-          </dl>
-
-          <div className="mt-4 flex gap-2">
-            {status === "conectado" ? (
-              <button
-                type="button"
-                onClick={() => setStatus("desconectado")}
-                className="flex-1 rounded-md px-3 py-2 text-[13px] font-medium ring-1 ring-black/10 transition-colors hover:bg-stone-50"
-              >
-                Desconectar
-              </button>
+            {loadingStatus ? (
+              <span className="inline-flex items-center gap-2 text-sm text-stone-500">
+                <LoaderCircle className="size-4 animate-spin" /> Verificando conexão
+              </span>
+            ) : status?.evolutionInstanceConnected ? (
+              <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 sm:self-center">
+                <span className="size-2 rounded-full bg-emerald-500" /> Conectado
+              </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => setStatus("pareando")}
-                className="flex-1 rounded-md bg-brand px-3 py-2 text-[13px] font-medium text-white ring-1 ring-brand/30 transition-colors hover:bg-brand-deep"
-              >
-                Gerar novo QR Code
-              </button>
+              <span className="inline-flex items-center gap-2 self-start rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 sm:self-center">
+                <span className="size-2 rounded-full bg-amber-500" /> Não conectado
+              </span>
             )}
           </div>
         </Card>
 
-        <div className="space-y-4">
-          <Card className="p-5">
-            <p className="text-[13px] font-semibold">Como funciona</p>
-            <ol className="mt-3 space-y-3 text-[12px] text-stone-600">
-              <li className="flex gap-2.5">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-stone-100 text-[10px] font-semibold">1</span>
-                Gere o QR Code e leia com o WhatsApp do restaurante.
-              </li>
-              <li className="flex gap-2.5">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-stone-100 text-[10px] font-semibold">2</span>
-                O agente passa a receber as mensagens dos clientes automaticamente.
-              </li>
-              <li className="flex gap-2.5">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-stone-100 text-[10px] font-semibold">3</span>
-                Você acompanha tudo em Conversas e assume o chat quando quiser.
-              </li>
-            </ol>
-          </Card>
-
-          <Card className="p-5">
-            <p className="text-[13px] font-semibold">Eventos recentes</p>
-            <div className="mt-3 divide-y divide-black/5 text-[12px]">
-              {[
-                ["18:42", "Mensagem recebida de Carla Mendes"],
-                ["18:39", "Conversa transferida para atendente humano"],
-                ["18:31", "Pedido #4821 confirmado pela IA"],
-                ["17:02", "Instância sincronizada com sucesso"],
-              ].map(([time, text]) => (
-                <div key={time} className="flex gap-3 py-2">
-                  <span className="w-10 shrink-0 text-stone-400">{time}</span>
-                  <span className="text-pretty">{text}</span>
-                </div>
-              ))}
+        <Card className="p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
+              <QrCode className="size-5" />
             </div>
-          </Card>
-        </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display font-semibold">Configurar conexão</h2>
+              <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                Confirme o nome do restaurante. Vamos preparar a conexão e mostrar o QR Code para
+                você parear o WhatsApp.
+              </p>
+              <label
+                htmlFor="restaurant-name"
+                className="mt-5 block text-sm font-medium text-stone-700"
+              >
+                Nome do restaurante
+              </label>
+              <input
+                id="restaurant-name"
+                value={restaurantName}
+                onChange={(event) => setRestaurantName(event.target.value)}
+                maxLength={120}
+                autoComplete="organization"
+                className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+                placeholder="Ex.: Sakura Sushi"
+              />
+              {!hasApiSession ? (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  Para conectar um WhatsApp real, entre com a conta cadastrada do proprietário. A
+                  conta de demonstração serve apenas para visualizar o painel.
+                </p>
+              ) : null}
+              <Btn
+                type="button"
+                onClick={() => void createOrConnectInstance()}
+                disabled={
+                  creatingInstance ||
+                  loadingStatus ||
+                  !hasApiSession ||
+                  restaurantName.trim().length < 2
+                }
+                className="mt-4"
+              >
+                {creatingInstance ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <QrCode className="size-4" />
+                )}
+                Criar conexão e gerar QR
+              </Btn>
+            </div>
+          </div>
+          {pairingQr ? (
+            <div className="mt-6 grid justify-items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 p-5 text-center">
+              <img
+                src={pairingQr}
+                alt={`QR Code para conectar ${restaurantName} ao WhatsApp`}
+                className="size-64 max-w-full rounded-lg bg-white object-contain p-2"
+              />
+              <p className="text-sm font-semibold text-stone-800">
+                Escaneie para conectar o WhatsApp
+              </p>
+              <p className="max-w-md text-xs leading-relaxed text-stone-600">
+                No WhatsApp, abra <strong>Aparelhos conectados → Conectar aparelho</strong>. A tela
+                verifica automaticamente quando a conexão for concluída.
+              </p>
+            </div>
+          ) : null}
+          {status?.evolutionInstanceConnected ? (
+            <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              O WhatsApp do restaurante está conectado.
+            </p>
+          ) : null}
+        </Card>
       </div>
     </AppShell>
   );

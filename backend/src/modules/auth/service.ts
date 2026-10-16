@@ -37,6 +37,8 @@ export async function registerOwner(input: RegisterInput) {
       .values({
         name: input.restaurantName,
         slug,
+        subscriptionPlan: input.plan,
+        subscriptionStatus: "simulado",
         whatsappInstance: input.whatsappInstance ?? slug,
         aiInstructions: input.aiInstructions ?? null,
         phone: input.phone ?? null,

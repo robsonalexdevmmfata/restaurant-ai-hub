@@ -23,7 +23,13 @@ import { defaultPrompt, menu as seedMenu } from "./mock";
 
 const DEMO_KEY = "restauranteai.demo";
 
-type Session = { id: number; tableId: number; openedAt: string; closedAt: string | null; payment: PaymentMethod | null };
+type Session = {
+  id: number;
+  tableId: number;
+  openedAt: string;
+  closedAt: string | null;
+  payment: PaymentMethod | null;
+};
 type Demo = {
   seq: number;
   restaurant: { name: string; slug: string };
@@ -40,9 +46,17 @@ function seed(): Demo {
   const menuId = 1;
   return {
     seq: 100,
-    restaurant: { name: "Pizzaria Vulcão", slug: "pizzaria-vulcao" },
+    restaurant: { name: "Sakura Sushi", slug: "pizzaria-vulcao" },
     menus: [
-      { id: menuId, restaurantId: 1, name: "Cardápio principal", slug: "principal", aiInstructions: defaultPrompt, isActive: true, createdAt: now },
+      {
+        id: menuId,
+        restaurantId: 1,
+        name: "Cardápio japonês",
+        slug: "principal",
+        aiInstructions: defaultPrompt,
+        isActive: true,
+        createdAt: now,
+      },
     ],
     products: seedMenu.map((m, i) => ({
       id: i + 1,
@@ -55,10 +69,24 @@ function seed(): Demo {
       imageUrl: m.imageUrl ?? null,
       status: m.available ? "DISPONIVEL" : "INDISPONIVEL",
     })),
-    tables: [1, 2, 3, 4, 5, 6].map((n) => ({ id: n, label: `Mesa ${n}`, seats: 4, isActive: true })),
+    tables: [1, 2, 3, 4, 5, 6].map((n) => ({
+      id: n,
+      label: `Mesa ${n}`,
+      seats: 4,
+      isActive: true,
+    })),
     sessions: [],
     orders: [],
-    users: [{ id: 1, name: "Marco Silva", email: "marco@pizzariavulcao.com.br", role: "OWNER", isActive: true, createdAt: now }],
+    users: [
+      {
+        id: 1,
+        name: "Marco Silva",
+        email: "marco@pizzariavulcao.com.br",
+        role: "OWNER",
+        isActive: true,
+        createdAt: now,
+      },
+    ],
   };
 }
 
@@ -104,7 +132,13 @@ async function call<T>(real: () => Promise<T>, demo: () => T): Promise<T> {
 function openSession(d: Demo, tableId: number) {
   let s = d.sessions.find((x) => x.tableId === tableId && !x.closedAt);
   if (!s) {
-    s = { id: nextId(d), tableId, openedAt: new Date().toISOString(), closedAt: null, payment: null };
+    s = {
+      id: nextId(d),
+      tableId,
+      openedAt: new Date().toISOString(),
+      closedAt: null,
+      payment: null,
+    };
     d.sessions.push(s);
   }
   return s;
@@ -112,7 +146,15 @@ function openSession(d: Demo, tableId: number) {
 
 function makeOrder(
   d: Demo,
-  input: { tableId?: number | null; source: string; customerName?: string; customerPhone?: string; notes?: string; items: ApiOrderItem[] },
+  input: {
+    tableId?: number | null;
+    source: string;
+    customerName?: string;
+    customerPhone?: string;
+    couponCode?: string;
+    notes?: string;
+    items: ApiOrderItem[];
+  },
 ): ApiOrder & { trackingToken: string } {
   const total = input.items.reduce((s, i) => s + i.price * i.quantity, 0);
   const session = input.tableId ? openSession(d, input.tableId) : null;
@@ -140,7 +182,10 @@ export const data = {
   listMenus: () =>
     call(api.listMenus, () => {
       const d = load();
-      return d.menus.map((m) => ({ ...m, productCount: d.products.filter((p) => p.menuId === m.id).length }));
+      return d.menus.map((m) => ({
+        ...m,
+        productCount: d.products.filter((p) => p.menuId === m.id).length,
+      }));
     }),
   createMenu: (input: { name: string; aiInstructions?: string; isActive?: boolean }) =>
     call(
@@ -242,7 +287,9 @@ export const data = {
       const d = load();
       return d.tables.map((t) => {
         const s = d.sessions.find((x) => x.tableId === t.id && !x.closedAt);
-        const os = s ? d.orders.filter((o) => o.sessionId === s.id && o.status !== "CANCELADO") : [];
+        const os = s
+          ? d.orders.filter((o) => o.sessionId === s.id && o.status !== "CANCELADO")
+          : [];
         return {
           ...t,
           sessionId: s?.id ?? null,
@@ -270,7 +317,13 @@ export const data = {
           const table = d.tables.find((t) => t.id === id);
           if (!table) throw new Error("Mesa não encontrada");
           Object.assign(table, input);
-          return { ...table, sessionId: null, sessionOpenedAt: null, sessionTotal: 0, sessionOrders: 0 };
+          return {
+            ...table,
+            sessionId: null,
+            sessionOpenedAt: null,
+            sessionTotal: 0,
+            sessionOrders: 0,
+          };
         }),
     ),
   deleteTable: (id: number) =>
@@ -288,7 +341,11 @@ export const data = {
     ),
 
   /* pedidos */
-  listOrders: () => call(() => api.listOrders(), () => load().orders),
+  listOrders: () =>
+    call(
+      () => api.listOrders(),
+      () => load().orders,
+    ),
   updateOrderStatus: (id: number, status: ApiOrder["status"]) =>
     call(
       () => api.updateOrderStatus(id, status),
@@ -322,7 +379,10 @@ export const data = {
         });
         const orders = await api.listOrders();
         const order = orders.find((entry) => entry.id === r.id);
-        if (!order) throw new Error("Pedido registrado, mas não foi possível carregar seus detalhes. Atualize a lista de pedidos.");
+        if (!order)
+          throw new Error(
+            "Pedido registrado, mas não foi possível carregar seus detalhes. Atualize a lista de pedidos.",
+          );
         return order;
       } catch (e) {
         if (!(e instanceof ApiError && e.status === 0)) throw e;
@@ -373,7 +433,14 @@ export const data = {
       () => api.createUser(input),
       () =>
         mutate((d) => {
-          const u: ApiUser = { id: nextId(d), name: input.name, email: input.email, role: input.role, isActive: true, createdAt: new Date().toISOString() };
+          const u: ApiUser = {
+            id: nextId(d),
+            name: input.name,
+            email: input.email,
+            role: input.role,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+          };
           d.users.push(u);
           return u;
         }),
@@ -401,21 +468,48 @@ export const data = {
   /* super admin */
   adminOverview: () =>
     call(
-      async () => ({ metrics: await api.adminMetrics(), restaurants: await api.adminRestaurants() }),
+      async () => ({
+        metrics: await api.adminMetrics(),
+        restaurants: await api.adminRestaurants(),
+      }),
       () => {
         const d = load();
-        const revenue = d.orders.filter((o) => o.status !== "CANCELADO").reduce((a, o) => a + Number(o.total), 0);
+        const revenue = d.orders
+          .filter((o) => o.status !== "CANCELADO")
+          .reduce((a, o) => a + Number(o.total), 0);
         return {
-          metrics: { restaurants: 1, users: d.users.length, products: d.products.length, conversations: 4, orders: d.orders.length, revenue },
+          metrics: {
+            restaurants: 1,
+            users: d.users.length,
+            products: d.products.length,
+            conversations: 4,
+            orders: d.orders.length,
+            revenue,
+          },
           restaurants: [
-            { id: 1, name: d.restaurant.name, slug: d.restaurant.slug, city: "São Paulo", state: "SP", isOpen: true, whatsappInstance: "vulcao-01", userCount: d.users.length, orderCount: d.orders.length, revenue },
+            {
+              id: 1,
+              name: d.restaurant.name,
+              slug: d.restaurant.slug,
+              city: "São Paulo",
+              state: "SP",
+              isOpen: true,
+              whatsappInstance: "vulcao-01",
+              userCount: d.users.length,
+              orderCount: d.orders.length,
+              revenue,
+            },
           ],
         };
       },
     ),
 
   /* público */
-  restaurantSlug: () => call(async () => (await api.getRestaurant()).slug, () => load().restaurant.slug),
+  restaurantSlug: () =>
+    call(
+      async () => (await api.getRestaurant()).slug,
+      () => load().restaurant.slug,
+    ),
   publicMenu: async (slug: string, menuSlug?: string): Promise<PublicMenuResponse> => {
     try {
       return await api.publicMenu(slug, menuSlug);
@@ -423,9 +517,27 @@ export const data = {
       if (!(e instanceof ApiError && e.status === 0)) throw e;
     }
     const d = load();
-    const menu = d.menus.find((m) => (menuSlug ? m.slug === menuSlug : m.isActive)) ?? d.menus[0] ?? null;
+    const menu =
+      d.menus.find((m) => (menuSlug ? m.slug === menuSlug : m.isActive)) ?? d.menus[0] ?? null;
     return {
-      restaurant: { id: 1, name: d.restaurant.name, slug: d.restaurant.slug, description: "Pizzas artesanais no forno a lenha", logoUrl: null, coverUrl: null, primaryColor: "#128c45", faviconUrl: null, publicPolicy: null, phone: null, whatsapp: null, address: null, city: null, state: null, openingHours: "18h às 23h", isOpen: true },
+      restaurant: {
+        id: 1,
+        name: d.restaurant.name,
+        slug: d.restaurant.slug,
+        description: "Sushi artesanal, combinados frescos e sabores do Japão preparados na hora.",
+        logoUrl: "/demo-assets/sakura-logo.svg",
+        coverUrl: "/demo-assets/sakura-cover.jpg",
+        primaryColor: "#A5213A",
+        faviconUrl: null,
+        publicPolicy: null,
+        phone: null,
+        whatsapp: null,
+        address: null,
+        city: null,
+        state: null,
+        openingHours: "18h às 23h",
+        isOpen: true,
+      },
       menu: menu ? { id: menu.id, name: menu.name, slug: menu.slug } : null,
       products: d.products.filter((p) => p.menuId === menu?.id && p.status === "DISPONIVEL"),
       promotions: [],
@@ -434,7 +546,13 @@ export const data = {
   },
   publicOrder: async (
     slug: string,
-    input: { tableLabel?: string; customerName?: string; customerPhone?: string; notes?: string; items: ApiOrderItem[] },
+    input: {
+      tableLabel?: string;
+      customerName?: string;
+      customerPhone?: string;
+      notes?: string;
+      items: ApiOrderItem[];
+    },
   ) => {
     try {
       const result = await api.publicOrder(slug, input);
@@ -444,7 +562,11 @@ export const data = {
     }
     return mutate((d) => {
       const table = d.tables.find((t) => t.label === input.tableLabel);
-      const order = makeOrder(d, { ...input, tableId: table?.id ?? null, source: table ? "qrcode" : "delivery" });
+      const order = makeOrder(d, {
+        ...input,
+        tableId: table?.id ?? null,
+        source: table ? "qrcode" : "delivery",
+      });
       return { trackingToken: order.trackingToken };
     });
   },

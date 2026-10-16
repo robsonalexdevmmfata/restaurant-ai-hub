@@ -10,6 +10,8 @@ import * as conversationService from "../conversations/service.js";
 import { createMenuSchema, updateMenuSchema } from "../menus/schemas.js";
 import * as menuService from "../menus/service.js";
 import { scheduleRestaurantEvent } from "../events/service.js";
+import * as couponService from "../coupons/service.js";
+import { createCouponSchema, updateCouponSchema } from "../coupons/schemas.js";
 import { listOrdersQuerySchema, updateOrderStatusSchema } from "../orders/schemas.js";
 import * as orderService from "../orders/service.js";
 import * as restaurantAssetService from "../restaurants/assets.js";
@@ -34,7 +36,10 @@ export async function meRoutes(app: FastifyInstance) {
     if (reply.sent) return;
 
     const { role } = getAuthUser(request);
-    const route = (request.routeOptions.url ?? request.url.split("?")[0]).replace(/^\/api(?=\/)/, "");
+    const route = (request.routeOptions.url ?? request.url.split("?")[0]).replace(
+      /^\/api(?=\/)/,
+      "",
+    );
     const method = request.method;
     if (role === "owner" || role === "gerente") return;
 
@@ -71,7 +76,7 @@ export async function meRoutes(app: FastifyInstance) {
       return restaurant;
     } catch (error) {
       if (isUniqueViolation(error)) {
-        return reply.status(409).send({ error: "whatsapp_instance already exists" });
+        return reply.status(409).send({ error: "O slug ou a instância do WhatsApp já está em uso." });
       }
       throw error;
     }
@@ -151,7 +156,9 @@ export async function meRoutes(app: FastifyInstance) {
     const { restaurantId } = getAuthUser(request);
     const parsed = promotionUploadSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: "Promoção inválida", details: parsed.error.flatten() });
+      return reply
+        .status(400)
+        .send({ error: "Promoção inválida", details: parsed.error.flatten() });
     }
     const match = parsed.data.image.match(/^data:(image\/(?:jpeg|png|webp));base64,(.*)$/);
     if (!match?.[2]) return reply.status(400).send({ error: "Imagem inválida" });
@@ -176,6 +183,46 @@ export async function meRoutes(app: FastifyInstance) {
     const deleted = await restaurantAssetService.deletePromotion(restaurantId, promotionId);
     if (!deleted) return reply.status(404).send({ error: "Promotion not found" });
     return reply.status(204).send();
+  });
+
+  app.get("/me/coupons", async (request) => {
+    const { restaurantId } = getAuthUser(request);
+    return couponService.listCoupons(restaurantId);
+  });
+
+  app.post("/me/coupons", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const parsed = createCouponSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Cupom inválido", details: parsed.error.flatten() });
+    }
+    try {
+      const coupon = await couponService.createCoupon(restaurantId, {
+        ...parsed.data,
+        value: parsed.data.value.toFixed(2),
+      });
+      return reply.status(201).send(coupon);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return reply.status(409).send({ error: "Este código já existe para o restaurante." });
+      }
+      throw error;
+    }
+  });
+
+  app.patch("/me/coupons/:couponId", async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const couponId = parseId((request.params as { couponId: string }).couponId);
+    if (!couponId) return reply.status(400).send({ error: "ID do cupom inválido." });
+    const parsed = updateCouponSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .status(400)
+        .send({ error: "Atualização inválida", details: parsed.error.flatten() });
+    }
+    const coupon = await couponService.updateCoupon(restaurantId, couponId, parsed.data.active);
+    if (!coupon) return reply.status(404).send({ error: "Cupom não encontrado." });
+    return coupon;
   });
 
   app.get("/me/dashboard/stats", async (request) => {
@@ -286,29 +333,30 @@ export async function meRoutes(app: FastifyInstance) {
     return product;
   });
 
-  app.post(
-    "/me/products/:productId/image",
-    { bodyLimit: 2_200_000 },
-    async (request, reply) => {
-      const { restaurantId } = getAuthUser(request);
-      const productId = parseId((request.params as { productId: string }).productId);
-      if (!productId) return reply.status(400).send({ error: "Invalid product id" });
+  app.post("/me/products/:productId/image", { bodyLimit: 2_200_000 }, async (request, reply) => {
+    const { restaurantId } = getAuthUser(request);
+    const productId = parseId((request.params as { productId: string }).productId);
+    if (!productId) return reply.status(400).send({ error: "Invalid product id" });
 
-      const parsed = productImageUploadSchema.safeParse(request.body);
-      if (!parsed.success) {
-        return reply.status(400).send({ error: "Imagem inválida", details: parsed.error.flatten() });
-      }
-      const encoded = parsed.data.image.slice("data:image/jpeg;base64,".length);
-      const image = Buffer.from(encoded, "base64");
-      if (image.length === 0 || image.length > 1_500_000) {
-        return reply.status(413).send({ error: "A imagem otimizada deve ter no máximo 1,5 MB." });
-      }
+    const parsed = productImageUploadSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Imagem inválida", details: parsed.error.flatten() });
+    }
+    const encoded = parsed.data.image.slice("data:image/jpeg;base64,".length);
+    const image = Buffer.from(encoded, "base64");
+    if (image.length === 0 || image.length > 1_500_000) {
+      return reply.status(413).send({ error: "A imagem otimizada deve ter no máximo 1,5 MB." });
+    }
 
-      const result = await productService.saveProductImage(productId, restaurantId, image, "image/jpeg");
-      if (!result) return reply.status(404).send({ error: "Product not found" });
-      return result;
-    },
-  );
+    const result = await productService.saveProductImage(
+      productId,
+      restaurantId,
+      image,
+      "image/jpeg",
+    );
+    if (!result) return reply.status(404).send({ error: "Product not found" });
+    return result;
+  });
 
   app.delete("/me/products/:productId/image", async (request, reply) => {
     const { restaurantId } = getAuthUser(request);
@@ -363,7 +411,8 @@ export async function meRoutes(app: FastifyInstance) {
     if (!result) return reply.status(404).send({ error: "Order not found" });
     if ("conflict" in result) {
       return reply.status(409).send({
-        error: "O status do pedido foi alterado por outro operador. Atualize a cozinha antes de tentar novamente.",
+        error:
+          "O status do pedido foi alterado por outro operador. Atualize a cozinha antes de tentar novamente.",
         currentStatus: result.currentStatus,
       });
     }
@@ -440,7 +489,11 @@ export async function meRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
     }
 
-    const conversation = await conversationService.updateConversationMode(id, restaurantId, parsed.data);
+    const conversation = await conversationService.updateConversationMode(
+      id,
+      restaurantId,
+      parsed.data,
+    );
     if (!conversation) return reply.status(404).send({ error: "Conversation not found" });
     return conversation;
   });
@@ -455,7 +508,11 @@ export async function meRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid body", details: parsed.error.flatten() });
     }
 
-    const conversation = await conversationService.updateConversationCart(id, restaurantId, parsed.data);
+    const conversation = await conversationService.updateConversationCart(
+      id,
+      restaurantId,
+      parsed.data,
+    );
     if (!conversation) return reply.status(404).send({ error: "Conversation not found" });
     return conversation;
   });

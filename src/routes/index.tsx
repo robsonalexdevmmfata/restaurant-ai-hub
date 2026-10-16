@@ -60,9 +60,9 @@ const testimonials = [
 ];
 
 const plans = [
-  { name: "Básico", price: "R$ 99", description: "Para restaurantes em crescimento", features: ["1 restaurante", "Atendimento por WhatsApp", "Cardápio digital", "Dashboard básica"] },
-  { name: "Pro", price: "R$ 249", description: "Para operações com volume maior", features: ["3 restaurantes", "IA avançada", "Gestão de equipe", "Pedidos + caixa + entregas", "Relatórios e métricas"], recommended: true },
-  { name: "Enterprise", price: "Sob medida", description: "Para redes multi-loja", features: ["Múltiplas unidades", "RBAC completo", "Suporte prioritário", "Customização e integrações"] },
+  { id: "Essencial", name: "Essencial", price: "R$ 99", description: "Para restaurantes em crescimento", features: ["1 restaurante", "Atendimento por WhatsApp", "Cardápio digital", "Dashboard básica"] },
+  { id: "Profissional", name: "Profissional", price: "R$ 249", description: "Para operações com volume maior", features: ["3 restaurantes", "IA avançada", "Gestão de equipe", "Pedidos + caixa + entregas", "Relatórios e métricas"], recommended: true },
+  { id: "Enterprise", name: "Enterprise", price: "Sob medida", description: "Para redes multi-loja", features: ["Múltiplas unidades", "RBAC completo", "Suporte prioritário", "Customização e integrações"] },
 ];
 
 function LandingPage() {
@@ -282,8 +282,8 @@ function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/login" className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-4 py-3 text-sm font-medium transition ${plan.recommended ? "bg-brand text-white hover:bg-brand-deep" : "bg-stone-900 text-white hover:bg-stone-800"}`}>
-                  Começar agora
+                <Link to="/cadastro" search={{ plan: plan.id }} className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-4 py-3 text-sm font-medium transition ${plan.recommended ? "bg-brand text-white hover:bg-brand-deep" : "bg-stone-900 text-white hover:bg-stone-800"}`}>
+                  Escolher plano
                 </Link>
               </div>
             ))}

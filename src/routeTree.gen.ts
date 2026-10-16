@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as CardapioRouteImport } from './routes/cardapio'
 import { Route as ConexaoRouteImport } from './routes/conexao'
@@ -38,6 +39,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CaixaRoute = CaixaRouteImport.update({
@@ -134,6 +140,7 @@ const MSlugMesaNumeroRoute = MSlugMesaNumeroRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro': typeof CadastroRoute
   '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro': typeof CadastroRoute
   '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro': typeof CadastroRoute
   '/caixa': typeof CaixaRoute
   '/cardapio': typeof CardapioRouteWithChildren
   '/conexao': typeof ConexaoRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/cadastro'
     | '/caixa'
     | '/cardapio'
     | '/conexao'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/cadastro'
     | '/caixa'
     | '/cardapio'
     | '/conexao'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/cadastro'
     | '/caixa'
     | '/cardapio'
     | '/conexao'
@@ -270,6 +282,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CadastroRoute: typeof CadastroRoute
   CaixaRoute: typeof CaixaRoute
   CardapioRoute: typeof CardapioRouteWithChildren
   ConexaoRoute: typeof ConexaoRoute
@@ -303,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/caixa': {
@@ -449,6 +469,7 @@ const CardapioRouteWithChildren = CardapioRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CadastroRoute: CadastroRoute,
   CaixaRoute: CaixaRoute,
   CardapioRoute: CardapioRouteWithChildren,
   ConexaoRoute: ConexaoRoute,

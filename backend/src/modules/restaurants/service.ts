@@ -62,30 +62,58 @@ export async function getTenantContext(instance: string, menuSlug?: string) {
 }
 
 export async function updateRestaurant(id: number, input: UpdateRestaurantInput) {
-  const [row] = await db
-    .update(restaurants)
-    .set({
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.whatsappInstance !== undefined && { whatsappInstance: input.whatsappInstance }),
-      ...(input.aiInstructions !== undefined && { aiInstructions: input.aiInstructions }),
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.phone !== undefined && { phone: input.phone }),
-      ...(input.whatsapp !== undefined && { whatsapp: input.whatsapp }),
-      ...(input.address !== undefined && { address: input.address }),
-      ...(input.city !== undefined && { city: input.city }),
-      ...(input.state !== undefined && { state: input.state }),
-      ...(input.kind !== undefined && { kind: input.kind }),
-      ...(input.openingHours !== undefined && { openingHours: input.openingHours }),
-      ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
-      ...(input.webhookUrl !== undefined && { webhookUrl: input.webhookUrl }),
-      ...(input.publicPolicy !== undefined && { publicPolicy: input.publicPolicy }),
-      ...(input.primaryColor !== undefined && { primaryColor: input.primaryColor }),
-      ...(input.faviconUrl !== undefined && { faviconUrl: input.faviconUrl }),
-      ...(input.cnpj !== undefined && { cnpj: input.cnpj }),
-    })
-    .where(eq(restaurants.id, id))
-    .returning();
-  return row ?? null;
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({
+        slug: restaurants.slug,
+        logoUrl: restaurants.logoUrl,
+        coverUrl: restaurants.coverUrl,
+        faviconUrl: restaurants.faviconUrl,
+      })
+      .from(restaurants)
+      .where(eq(restaurants.id, id))
+      .for("update")
+      .limit(1);
+    if (!current) return null;
+
+    const slug = input.slug ?? current.slug;
+    const updateAssetSlug = (url: string | null) => {
+      const previousPrefix = `/public/restaurants/${current.slug}/`;
+      return url?.startsWith(previousPrefix)
+        ? `/public/restaurants/${slug}/${url.slice(previousPrefix.length)}`
+        : url;
+    };
+    const [row] = await tx
+      .update(restaurants)
+      .set({
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.slug !== undefined && {
+          slug,
+          logoUrl: updateAssetSlug(current.logoUrl),
+          coverUrl: updateAssetSlug(current.coverUrl),
+          faviconUrl: updateAssetSlug(current.faviconUrl),
+        }),
+        ...(input.whatsappInstance !== undefined && { whatsappInstance: input.whatsappInstance }),
+        ...(input.aiInstructions !== undefined && { aiInstructions: input.aiInstructions }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.phone !== undefined && { phone: input.phone }),
+        ...(input.whatsapp !== undefined && { whatsapp: input.whatsapp }),
+        ...(input.address !== undefined && { address: input.address }),
+        ...(input.city !== undefined && { city: input.city }),
+        ...(input.state !== undefined && { state: input.state }),
+        ...(input.kind !== undefined && { kind: input.kind }),
+        ...(input.openingHours !== undefined && { openingHours: input.openingHours }),
+        ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
+        ...(input.webhookUrl !== undefined && { webhookUrl: input.webhookUrl }),
+        ...(input.publicPolicy !== undefined && { publicPolicy: input.publicPolicy }),
+        ...(input.primaryColor !== undefined && { primaryColor: input.primaryColor }),
+        ...(input.faviconUrl !== undefined && { faviconUrl: input.faviconUrl }),
+        ...(input.cnpj !== undefined && { cnpj: input.cnpj }),
+      })
+      .where(eq(restaurants.id, id))
+      .returning();
+    return row ?? null;
+  });
 }
 
 export async function saveRestaurantLogo(id: number, data: Buffer, mimeType: string) {

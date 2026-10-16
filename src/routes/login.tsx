@@ -12,7 +12,10 @@ export const Route = createFileRoute("/login")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { title: "Entrar · RestaurantAI" },
-      { name: "description", content: "Entre no painel do seu restaurante com seu usuário e senha." },
+      {
+        name: "description",
+        content: "Entre no painel do seu restaurante com seu usuário e senha.",
+      },
     ],
   }),
   component: Login,
@@ -43,10 +46,19 @@ function Login() {
     setLoading(true);
     setLoginError("");
     try {
-      const user = await signIn(email, password);
+      const demoAccount = Object.values(DEMO_ACCOUNTS).find(
+        (account) =>
+          account.email.toLowerCase() === email.trim().toLowerCase() &&
+          account.password === password,
+      );
+      const user = demoAccount ? signInAs(demoAccount.role) : await signIn(email, password);
       navigate({ to: getDefaultRouteForRole(user.role), replace: true });
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Não foi possível entrar. Verifique suas credenciais.");
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível entrar. Verifique suas credenciais.",
+      );
     } finally {
       setLoading(false);
     }
@@ -58,7 +70,9 @@ function Login() {
         <div className="flex items-center gap-3">
           <img src={logo} alt="RestaurantAI" width={32} height={32} className="size-8 rounded-lg" />
           <div className="leading-none">
-            <span className="font-display text-[15px] font-semibold tracking-tight text-white">RestaurantAI</span>
+            <span className="font-display text-[15px] font-semibold tracking-tight text-white">
+              RestaurantAI
+            </span>
             <p className="mt-0.5 text-[10px] text-stone-500">Multi-tenant SaaS</p>
           </div>
         </div>
@@ -68,7 +82,8 @@ function Login() {
             Gestão completa da operação em um só painel.
           </h2>
           <p className="mt-4 text-[14px] leading-relaxed text-stone-400">
-            Cada proprietário pode criar acessos de equipe para cozinha, caixa, entregas e atendimento. Cada conta fica vinculada ao restaurante correto.
+            Cada proprietário pode criar acessos de equipe para cozinha, caixa, entregas e
+            atendimento. Cada conta fica vinculada ao restaurante correto.
           </p>
 
           <div className="mt-8 grid grid-cols-3 gap-4 text-left">
@@ -87,7 +102,9 @@ function Login() {
           </div>
         </div>
 
-        <p className="text-[11px] text-stone-600">Acessos da equipe separados por restaurante e função.</p>
+        <p className="text-[11px] text-stone-600">
+          Acessos da equipe separados por restaurante e função.
+        </p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center p-6">
@@ -95,7 +112,9 @@ function Login() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">Acesso</p>
-              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight">Entrar no painel</h1>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight">
+                Entrar no painel
+              </h1>
             </div>
             <Link to="/" className="text-sm font-medium text-stone-500 hover:text-ink">
               Voltar ao site
@@ -104,7 +123,9 @@ function Login() {
 
           <form onSubmit={submit} className="space-y-3">
             <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">E-mail</span>
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">
+                E-mail
+              </span>
               <input
                 required
                 type="email"
@@ -114,7 +135,9 @@ function Login() {
               />
             </label>
             <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">Senha</span>
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-400">
+                Senha
+              </span>
               <input
                 required
                 type="password"
@@ -131,16 +154,32 @@ function Login() {
               {loading ? "Entrando…" : "Entrar"}
             </button>
           </form>
-          {loginError && <p role="alert" className="mt-3 text-[12px] text-red-600">{loginError}</p>}
+          {loginError && (
+            <p role="alert" className="mt-3 text-[12px] text-red-600">
+              {loginError}
+            </p>
+          )}
+          <p className="mt-4 text-center text-sm text-stone-500">
+            Ainda não tem conta?{" "}
+            <Link to="/cadastro" className="font-semibold text-brand hover:underline">
+              Cadastre seu restaurante
+            </Link>
+          </p>
 
           {suspensionNotice && (
-            <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-[12px] text-red-800">
-              O acesso de {suspensionNotice} está suspenso. Entre em contato com o administrador da plataforma.
+            <div
+              role="alert"
+              className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-[12px] text-red-800"
+            >
+              O acesso de {suspensionNotice} está suspenso. Entre em contato com o administrador da
+              plataforma.
             </div>
           )}
 
           <div className="mt-6 rounded-2xl bg-stone-50 p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-stone-500">Contas de demonstração</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-stone-500">
+              Contas de demonstração
+            </p>
             <div className="mt-3 grid gap-2">
               {Object.values(DEMO_ACCOUNTS).map((account) => (
                 <button
@@ -149,7 +188,7 @@ function Login() {
                   onClick={() => {
                     setEmail(account.email);
                     setPassword(account.password);
-                    const user = signIn(account.email, account.password);
+                    const user = signInAs(account.role);
                     navigate({ to: getDefaultRouteForRole(user.role), replace: true });
                   }}
                   className="flex items-center justify-between rounded-xl border border-black/5 bg-white px-3 py-2 text-left text-sm transition hover:bg-stone-50"

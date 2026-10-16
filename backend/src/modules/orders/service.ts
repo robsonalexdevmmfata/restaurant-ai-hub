@@ -3,6 +3,7 @@ import { and, asc, desc, eq, getTableColumns, gt, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {
   conversations,
+  coupons,
   deliveryAssignmentHistory,
   deliveryAssignments,
   orderStatusHistory,
@@ -68,7 +69,11 @@ export async function listOrderStatusHistory(orderId: number, restaurantId: numb
     .orderBy(asc(orderStatusHistory.changedAt), asc(orderStatusHistory.id));
 }
 
-export async function createOrderWithHistory(input: typeof orders.$inferInsert, source: string) {
+export async function createOrderWithHistory(
+  input: typeof orders.$inferInsert,
+  source: string,
+  couponCode?: string,
+) {
   return db.transaction(async (tx) => {
     if (input.sessionId !== null && input.sessionId !== undefined) {
       const [session] = await tx
@@ -86,7 +91,46 @@ export async function createOrderWithHistory(input: typeof orders.$inferInsert, 
       if (!session) throw new ClosedTableSessionError();
     }
 
-    const [order] = await tx.insert(orders).values(input).returning();
+    let orderInput = input;
+    if (couponCode?.trim()) {
+      const code = couponCode.trim().toLocaleUpperCase("pt-BR");
+      const [coupon] = await tx
+        .select()
+        .from(coupons)
+        .where(and(eq(coupons.restaurantId, input.restaurantId), eq(coupons.code, code)))
+        .for("update")
+        .limit(1);
+      const now = new Date();
+      if (!coupon || !coupon.active)
+        throw new InvalidCouponError("Cupom não encontrado ou inativo.");
+      if (now < coupon.startsAt) throw new InvalidCouponError("Este cupom ainda não está válido.");
+      if (now > coupon.expiresAt) throw new InvalidCouponError("Este cupom expirou.");
+      if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
+        throw new InvalidCouponError("Este cupom atingiu o limite de utilizações.");
+      }
+      if (coupon.kind === "frete-gratis") {
+        throw new InvalidCouponError("Frete grátis ainda não está disponível neste cardápio.");
+      }
+
+      const subtotalCents = Math.max(0, Math.round(Number(input.total ?? 0) * 100));
+      const value = Number(coupon.value);
+      const discountCents =
+        coupon.kind === "percentual"
+          ? Math.min(subtotalCents, Math.round((subtotalCents * Math.min(100, value)) / 100))
+          : Math.min(subtotalCents, Math.round(value * 100));
+      await tx
+        .update(coupons)
+        .set({ usedCount: coupon.usedCount + 1 })
+        .where(eq(coupons.id, coupon.id));
+      orderInput = {
+        ...input,
+        total: ((subtotalCents - discountCents) / 100).toFixed(2),
+        couponCode: coupon.code,
+        couponDiscount: (discountCents / 100).toFixed(2),
+      };
+    }
+
+    const [order] = await tx.insert(orders).values(orderInput).returning();
     await tx.insert(orderStatusHistory).values({
       restaurantId: order.restaurantId,
       orderId: order.id,
@@ -108,6 +152,13 @@ export async function createOrderWithHistory(input: typeof orders.$inferInsert, 
     }
     return order;
   });
+}
+
+export class InvalidCouponError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCouponError";
+  }
 }
 
 export class ClosedTableSessionError extends Error {

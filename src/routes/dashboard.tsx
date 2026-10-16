@@ -13,12 +13,14 @@ import {
   YAxis,
 } from "recharts";
 import { useEffect, useState } from "react";
+import { ChevronRight, Sparkles, X } from "lucide-react";
 
 import { AppShell, Card, Skeleton } from "@/components/app-shell";
 import { useLoad } from "@/components/kit";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getToken } from "@/lib/api";
+import { ONBOARDING_PENDING_KEY } from "@/lib/auth";
 import { data } from "@/lib/data";
 import { brl, chats, hourly, kpis } from "@/lib/mock";
 import { useTenantOperations } from "@/lib/operations";
@@ -45,6 +47,8 @@ function Dashboard() {
   const { branding } = useTenantBranding(tenant?.restaurantSlug ?? "pizzaria-vulcao");
   const teamLoad = useLoad(() => data.listUsers(), [tenant?.restaurantSlug]);
   const [ready, setReady] = useState(false);
+  const [showSetupHelper, setShowSetupHelper] = useState(false);
+  const [setupPending, setSetupPending] = useState(false);
   const [selectedAuditMember, setSelectedAuditMember] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [addingMember, setAddingMember] = useState(false);
   const [form, setForm] = useState({
@@ -58,6 +62,14 @@ function Dashboard() {
     const t = window.setTimeout(() => setReady(true), 800);
     return () => window.clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!tenant) return;
+    const pending = window.localStorage.getItem(ONBOARDING_PENDING_KEY) === tenant.restaurantSlug;
+    const dismissed = window.sessionStorage.getItem(`restaurantai.onboarding.dismissed.${tenant.restaurantSlug}`) === "true";
+    setSetupPending(pending);
+    setShowSetupHelper(pending && !dismissed);
+  }, [tenant]);
 
   if (loading || !tenant) return <BootScreen />;
 
@@ -191,6 +203,63 @@ function Dashboard() {
       }
     >
       <div className="space-y-4">
+        {setupPending && (
+          showSetupHelper ? (
+            <Card className="relative overflow-hidden border-brand/20 bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-4 sm:p-6">
+              <button
+                type="button"
+                onClick={() => {
+                  window.sessionStorage.setItem(`restaurantai.onboarding.dismissed.${tenant.restaurantSlug}`, "true");
+                  setShowSetupHelper(false);
+                }}
+                aria-label="Minimizar guia de configuração"
+                className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-stone-500 hover:bg-white"
+              >
+                <X className="size-4" />
+              </button>
+              <div className="grid items-center gap-5 sm:grid-cols-[160px_minmax(0,1fr)]">
+                <img src="/chef-onboarding.svg" alt="Chef sorridente segurando uma bandeja" className="mx-auto w-36 drop-shadow-sm sm:w-40" />
+                <div>
+                  <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand ring-1 ring-brand/10">
+                    <Sparkles className="size-3.5" /> Seu assistente de configuração
+                  </p>
+                  <h2 className="mt-2 font-display text-xl font-semibold">Bem-vindo, {tenant.name.split(" ")[0]}! Vamos preparar sua loja.</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-600">Siga estes passos para deixar seu restaurante pronto para receber pedidos. Você pode fazer tudo agora ou continuar depois.</p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {[
+                      { title: "Personalize o perfil e a capa", to: "/personalizacao", detail: "Logo, cores e endereço público" },
+                      { title: "Monte seu cardápio", to: "/cardapio", detail: "Cadastre pratos, preços e fotos" },
+                      { title: "Crie uma promoção", to: "/promocoes", detail: "Cupons e banners da sua loja" },
+                      { title: "Prepare as mesas e QR Codes", to: "/mesas", detail: "Links já usam o slug da sua loja" },
+                      { title: "Conecte seu atendimento", to: "/conexao", detail: "Configure o canal do restaurante" },
+                    ].map((step, index) => (
+                      <Link key={step.to} to={step.to} className="group flex items-center gap-3 rounded-xl border border-white bg-white/85 p-3 transition hover:border-brand/30 hover:bg-white">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">{index + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold">{step.title}</span>
+                          <span className="mt-0.5 block text-[10px] text-stone-500">{step.detail}</span>
+                        </span>
+                        <ChevronRight className="size-4 shrink-0 text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-brand" />
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-stone-500">Plano selecionado: <strong className="text-stone-700">{tenant.subscriptionPlan ?? "Profissional"}</strong> · cobrança simulada, sem pagamento nesta etapa.</p>
+                    <button type="button" onClick={() => {
+                      window.localStorage.removeItem(ONBOARDING_PENDING_KEY);
+                      window.sessionStorage.removeItem(`restaurantai.onboarding.dismissed.${tenant.restaurantSlug}`);
+                      setSetupPending(false);
+                    }} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand-deep">Concluir guia</button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <button type="button" onClick={() => setShowSetupHelper(true)} className="inline-flex items-center gap-2 rounded-xl border border-brand/20 bg-white px-3 py-2 text-xs font-semibold text-brand shadow-sm hover:bg-brand/5">
+              <Sparkles className="size-4" /> Abrir guia de configuração
+            </button>
+          )
+        )}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map((kpi) => (
             <Card key={kpi.label} className="p-4">

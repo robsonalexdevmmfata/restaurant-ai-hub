@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const registerSchema = z.object({
   restaurantName: z.string().min(2).max(255),
+  plan: z.enum(["Essencial", "Profissional", "Enterprise"]),
   whatsappInstance: z.string().min(2).max(255).optional(),
   aiInstructions: z.string().optional(),
   ownerName: z.string().min(2).max(255).optional(),

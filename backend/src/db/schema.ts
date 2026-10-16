@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   customType,
@@ -12,6 +13,7 @@ import {
   index,
   unique,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -22,6 +24,8 @@ export const restaurants = pgTable("restaurants", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull().unique(),
+  subscriptionPlan: varchar("subscription_plan", { length: 30 }).notNull().default("Essencial"),
+  subscriptionStatus: varchar("subscription_status", { length: 30 }).notNull().default("simulado"),
   whatsappInstance: varchar("whatsapp_instance", { length: 255 }).notNull().unique(),
   aiInstructions: text("ai_instructions"),
   description: text("description"),
@@ -42,17 +46,26 @@ export const restaurants = pgTable("restaurants", {
   isOpen: boolean("is_open").notNull().default(true),
 });
 
-export const diningTables = pgTable("dining_tables", {
-  id: serial("id").primaryKey(),
-  restaurantId: integer("restaurant_id").notNull().references(() => restaurants.id, { onDelete: "cascade" }),
-  tableNumber: integer("table_number").notNull(),
-  status: varchar("status", { length: 20 }).notNull().default("Livre"),
-  sessionId: varchar("session_id", { length: 64 }),
-  openedAt: timestamp("opened_at", { withTimezone: true }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  restaurantTableUnique: uniqueIndex("dining_tables_restaurant_table_unique").on(table.restaurantId, table.tableNumber),
-}));
+export const diningTables = pgTable(
+  "dining_tables",
+  {
+    id: serial("id").primaryKey(),
+    restaurantId: integer("restaurant_id")
+      .notNull()
+      .references(() => restaurants.id, { onDelete: "cascade" }),
+    tableNumber: integer("table_number").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("Livre"),
+    sessionId: varchar("session_id", { length: 64 }),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    restaurantTableUnique: uniqueIndex("dining_tables_restaurant_table_unique").on(
+      table.restaurantId,
+      table.tableNumber,
+    ),
+  }),
+);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -187,6 +200,8 @@ export const orders = pgTable(
     orderDetails: text("order_details").notNull(),
     itemsJson: jsonb("items_json"),
     total: numeric("total", { precision: 10, scale: 2 }).notNull().default("0"),
+    couponCode: varchar("coupon_code", { length: 80 }),
+    couponDiscount: numeric("coupon_discount", { precision: 10, scale: 2 }).notNull().default("0"),
     notes: text("notes"),
     paymentMethod: varchar("payment_method", { length: 30 }),
     deliveryAddress: text("delivery_address"),
@@ -198,6 +213,31 @@ export const orders = pgTable(
   },
   (table) => ({
     trackingTokenUnique: uniqueIndex("orders_tracking_token_unique").on(table.trackingToken),
+  }),
+);
+
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: serial("id").primaryKey(),
+    restaurantId: integer("restaurant_id")
+      .notNull()
+      .references(() => restaurants.id, { onDelete: "cascade" }),
+    code: varchar("code", { length: 80 }).notNull(),
+    kind: varchar("kind", { length: 20 }).notNull(),
+    value: numeric("value", { precision: 10, scale: 2 }).notNull().default("0"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    maxUses: integer("max_uses").notNull().default(0),
+    usedCount: integer("used_count").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    restaurantCodeUnique: uniqueIndex("coupons_restaurant_code_unique").on(
+      table.restaurantId,
+      table.code,
+    ),
   }),
 );
 
@@ -266,6 +306,34 @@ export const conversations = pgTable("conversations", {
   updatedAt: timestamp("updated_at", { withTimezone: false }).notNull().defaultNow(),
 });
 
+export const conversationMessages = pgTable(
+  "conversation_messages",
+  {
+    id: serial("id").primaryKey(),
+    conversationId: integer("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull(),
+    content: text("content").notNull(),
+    externalMessageId: varchar("external_message_id", { length: 255 }).unique(),
+    replyToMessageId: integer("reply_to_message_id").references((): AnyPgColumn => conversationMessages.id, {
+      onDelete: "cascade",
+    }),
+    deliveryStatus: varchar("delivery_status", { length: 20 }).notNull().default("sent"),
+    deliveryAttemptedAt: timestamp("delivery_attempted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    conversationCreatedAt: index("conversation_messages_history_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+    conversationReplyUnique: uniqueIndex("conversation_messages_reply_to_unique")
+      .on(table.replyToMessageId)
+      .where(sql`${table.replyToMessageId} IS NOT NULL`),
+  }),
+);
+
 export type Restaurant = typeof restaurants.$inferSelect;
 export type DiningTable = typeof diningTables.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -276,5 +344,7 @@ export type RestaurantAsset = typeof restaurantAssets.$inferSelect;
 export type RestaurantTable = typeof restaurantTables.$inferSelect;
 export type TableSession = typeof tableSessions.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type Coupon = typeof coupons.$inferSelect;
 export type OrderStatusHistory = typeof orderStatusHistory.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMessage = typeof conversationMessages.$inferSelect;

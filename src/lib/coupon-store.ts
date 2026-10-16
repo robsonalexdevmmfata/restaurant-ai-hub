@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { api } from "./api";
 
 export type CouponKind = "percentual" | "valor-fixo" | "frete-gratis";
 
@@ -56,7 +57,39 @@ export function useTenantCoupons(slug: string) {
       window.removeEventListener("storage", handleStorage);
     };
   }, [slug]);
-  return { coupons, update: (updater: (current: Coupon[]) => Coupon[]) => updateTenantCoupons(slug, updater) };
+  return {
+    coupons,
+    update: (updater: (current: Coupon[]) => Coupon[]) => updateTenantCoupons(slug, updater),
+  };
+}
+
+export function usePublicTenantCoupons(slug: string, enabled = true) {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!enabled) {
+      setCoupons([]);
+      setError("");
+      return;
+    }
+    let active = true;
+    setCoupons([]);
+    setError("");
+    void api
+      .publicCoupons(slug)
+      .then((items) => {
+        if (active) setCoupons(items);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar os cupons.");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [enabled, slug]);
+  return { coupons, error };
 }
 
 export type CouponValidation = {
@@ -77,15 +110,38 @@ export function validateCoupon(
   const code = rawCode.trim().toLocaleUpperCase("pt-BR");
   if (!code) return { valid: false, discountAmount: 0 };
   const coupon = coupons.find((item) => item.code.toLocaleUpperCase("pt-BR") === code);
-  if (!coupon || !coupon.active) return { valid: false, discountAmount: 0, error: "Cupom não encontrado ou inativo." };
-  if (now < new Date(coupon.startsAt)) return { valid: false, coupon, discountAmount: 0, error: "Este cupom ainda não está válido." };
-  if (now > new Date(coupon.expiresAt)) return { valid: false, coupon, discountAmount: 0, error: "Este cupom expirou." };
-  if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) return { valid: false, coupon, discountAmount: 0, error: "Este cupom atingiu o limite de utilizações." };
-  if (coupon.kind === "frete-gratis" && !isDelivery) return { valid: false, coupon, discountAmount: 0, error: "Frete grátis é válido apenas para pedidos de entrega." };
-  const discountAmount = coupon.kind === "percentual"
-    ? Math.min(subtotal, subtotal * Math.min(100, Math.max(0, coupon.value)) / 100)
-    : coupon.kind === "valor-fixo"
-      ? Math.min(subtotal, Math.max(0, coupon.value))
-      : Math.max(0, deliveryFee);
+  if (!coupon || !coupon.active)
+    return { valid: false, discountAmount: 0, error: "Cupom não encontrado ou inativo." };
+  if (now < new Date(coupon.startsAt))
+    return { valid: false, coupon, discountAmount: 0, error: "Este cupom ainda não está válido." };
+  if (now > new Date(coupon.expiresAt))
+    return { valid: false, coupon, discountAmount: 0, error: "Este cupom expirou." };
+  if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses)
+    return {
+      valid: false,
+      coupon,
+      discountAmount: 0,
+      error: "Este cupom atingiu o limite de utilizações.",
+    };
+  if (coupon.kind === "frete-gratis" && !isDelivery)
+    return {
+      valid: false,
+      coupon,
+      discountAmount: 0,
+      error: "Frete grátis é válido apenas para pedidos de entrega.",
+    };
+  if (coupon.kind === "frete-gratis" && deliveryFee <= 0)
+    return {
+      valid: false,
+      coupon,
+      discountAmount: 0,
+      error: "A taxa de entrega ainda não está configurada para este cardápio.",
+    };
+  const discountAmount =
+    coupon.kind === "percentual"
+      ? Math.min(subtotal, (subtotal * Math.min(100, Math.max(0, coupon.value))) / 100)
+      : coupon.kind === "valor-fixo"
+        ? Math.min(subtotal, Math.max(0, coupon.value))
+        : Math.max(0, deliveryFee);
   return { valid: true, coupon, discountAmount: Math.round(discountAmount * 100) / 100 };
 }

@@ -4,6 +4,7 @@ import Fastify from "fastify";
 
 import { env } from "./config/env.js";
 import { adminRoutes } from "./modules/admin/routes.js";
+import { aiRoutes } from "./modules/ai/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { diningTableRoutes } from "./modules/dining-tables/routes.js";
 import { deliveryRoutes } from "./modules/deliveries/routes.js";
@@ -35,6 +36,7 @@ export async function buildApp() {
   }));
 
   await app.register(authRoutes, { prefix: "/api" });
+  await app.register(aiRoutes, { prefix: "/api" });
   await app.register(meRoutes, { prefix: "/api" });
   await app.register(tableRoutes, { prefix: "/api" });
   await app.register(staffRoutes, { prefix: "/api" });

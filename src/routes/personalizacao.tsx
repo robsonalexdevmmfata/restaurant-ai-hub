@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell, Card } from "@/components/app-shell";
 import { api, apiAssetUrl, getToken } from "@/lib/api";
+import { updateTenantRestaurant } from "@/lib/auth";
 import { readImageAsDataUrl } from "@/lib/image-upload";
 import { useTenantBranding } from "@/lib/tenant-branding";
 import { showToast } from "@/lib/toast";
@@ -22,6 +23,9 @@ function RestaurantBranding() {
   const [coverUrl, setCoverUrl] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [publicPolicy, setPublicPolicy] = useState("");
+  const [restaurantName, setRestaurantName] = useState(tenant?.restaurant ?? "");
+  const [restaurantSlug, setRestaurantSlug] = useState(tenant?.restaurantSlug ?? "");
+  const [description, setDescription] = useState("");
   const [openingHours, setOpeningHours] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -32,8 +36,16 @@ function RestaurantBranding() {
 
   useEffect(() => setDraft(branding), [branding]);
   useEffect(() => {
+    if (!tenant) return;
+    setRestaurantName(tenant.restaurant);
+    setRestaurantSlug(tenant.restaurantSlug);
+  }, [tenant]);
+  useEffect(() => {
     if (!getToken()) return;
     api.getRestaurant().then((restaurant) => {
+      setRestaurantName(restaurant.name);
+      setRestaurantSlug(restaurant.slug);
+      setDescription(restaurant.description ?? "");
       setDraft((current) => ({
         ...current,
         logoUrl: restaurant.logoUrl ?? "",
@@ -95,6 +107,9 @@ function RestaurantBranding() {
         return;
       }
       const restaurant = await api.updateRestaurant({
+        name: restaurantName.trim(),
+        slug: restaurantSlug.trim(),
+        description: description.trim() || null,
         primaryColor: draft.primaryColor,
         cnpj: draft.cnpj || null,
         webhookUrl: webhookUrl.trim() || null,
@@ -105,6 +120,7 @@ function RestaurantBranding() {
         state: stateName.trim(),
       });
       restaurantSaved = true;
+      updateTenantRestaurant({ restaurant: restaurant.name, restaurantSlug: restaurant.slug });
       let logoUrl = restaurant.logoUrl ?? "";
       let faviconUrl = restaurant.faviconUrl ?? "";
       let savedCoverUrl = restaurant.coverUrl ?? "";
@@ -177,6 +193,26 @@ function RestaurantBranding() {
                   />
                 </label>
               ))}
+            </section>
+
+            <section className="space-y-3 rounded-md border border-black/10 p-3">
+              <p className="text-[12px] font-semibold">Perfil público da loja</p>
+              <label className="block text-[11px] font-medium text-stone-600">
+                Nome exibido no cardápio
+                <input required minLength={2} maxLength={255} value={restaurantName} onChange={(event) => setRestaurantName(event.target.value)} className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" />
+              </label>
+              <label className="block text-[11px] font-medium text-stone-600">
+                Endereço do cardápio (slug)
+                <div className="mt-1 flex items-center rounded-md border border-black/10 bg-white px-3 text-[12px] text-stone-500">
+                  <span className="shrink-0">{origin}/r/</span>
+                  <input required minLength={2} maxLength={255} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={restaurantSlug} onChange={(event) => setRestaurantSlug(event.target.value.toLocaleLowerCase("en-US").replace(/[^a-z0-9-]/g, "").replace(/-{2,}/g, "-"))} className="min-w-0 flex-1 border-0 bg-transparent py-2 text-ink outline-none" />
+                </div>
+                <span className="mt-1 block text-[10px] font-normal text-stone-500">Use letras minúsculas, números e hífens. O link e os QR Codes das mesas usarão este endereço.</span>
+              </label>
+              <label className="block text-[11px] font-medium text-stone-600">
+                Descrição da loja
+                <textarea maxLength={2000} rows={3} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Conte aos clientes sobre seu restaurante." className="mt-1 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[12px]" />
+              </label>
             </section>
 
             <label className="block text-[12px] font-medium text-stone-600">
@@ -272,7 +308,7 @@ function RestaurantBranding() {
 
           <Card className="p-4 sm:p-5">
             <p className="text-[13px] font-semibold">Link público do cardápio</p>
-            <p className="mt-1 text-[11px] text-stone-500">Identificador do restaurante: <span className="font-medium text-stone-700">{tenant.restaurantSlug}</span></p>
+            <p className="mt-1 text-[11px] text-stone-500">Identificador do restaurante: <span className="font-medium text-stone-700">{restaurantSlug || tenant.restaurantSlug}</span></p>
             <div className="mt-3 flex items-center gap-2 rounded-md bg-stone-50 p-2">
               <code className="min-w-0 flex-1 break-all text-[11px] text-stone-700">{publicUrl}</code>
               <button type="button" onClick={copyPublicLink} title="Copiar link" aria-label="Copiar link público" className="grid size-8 shrink-0 place-items-center rounded-md bg-white text-stone-700 ring-1 ring-black/10 hover:bg-stone-100"><Copy className="size-4" /></button>

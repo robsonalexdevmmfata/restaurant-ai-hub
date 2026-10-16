@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { brl, type MenuItem } from "@/lib/mock";
 import { apiAssetUrl, type ApiPromotion } from "@/lib/api";
 import { dispatchAbandonedCartCouponReminder } from "@/lib/delivery-notifications";
-import { useTenantCoupons, updateTenantCoupons, validateCoupon } from "@/lib/coupon-store";
+import { usePublicTenantCoupons, useTenantCoupons, validateCoupon } from "@/lib/coupon-store";
 import { useTenantMenu } from "@/lib/menu-store";
 import { updateTenantOperations, useTenantOperations } from "@/lib/operations";
 import { hasPublicApi, publicApiUrl } from "@/lib/public-api";
@@ -44,7 +44,9 @@ function PublicTableMenu() {
   const { slug, numero } = Route.useParams();
   const tableNumber = Number(numero);
   const { items } = useTenantMenu(slug);
-    const { coupons } = useTenantCoupons(slug);
+  const { coupons: localCoupons, update: updateLocalCoupons } = useTenantCoupons(slug);
+  const { coupons: publicCoupons, error: couponLoadError } = usePublicTenantCoupons(slug, hasPublicApi());
+  const coupons = hasPublicApi() ? publicCoupons : localCoupons;
   const { branding } = useTenantBranding(slug);
   const { operations } = useTenantOperations(slug);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -274,6 +276,15 @@ function PublicTableMenu() {
 
   async function sendOrder() {
     if (!cart.length) return;
+    if (customerName.trim().length < 2) {
+      setNotice("Informe seu nome para continuar.");
+      return;
+    }
+    const phoneDigits = customerPhone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      setNotice("Informe um WhatsApp válido com DDD.");
+      return;
+    }
     if (hasPublicApi() && tableSnapshotLoaded && !tableSnapshot?.session) {
       setNotice("A comanda foi encerrada pelo caixa. Reabra o cardápio da mesa para iniciar outro pedido.");
       return;
@@ -284,9 +295,9 @@ function PublicTableMenu() {
       setNotice(currentCoupon?.error ?? "Este cupom não é mais válido.");
       return;
     }
-    if (currentCoupon?.coupon) {
+    if (!hasPublicApi() && currentCoupon?.coupon) {
       let redeemed = false;
-      updateTenantCoupons(slug, (current) => current.map((coupon) => {
+      updateLocalCoupons((current) => current.map((coupon) => {
         if (coupon.id !== currentCoupon.coupon!.id || !coupon.active || (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) || Date.now() < new Date(coupon.startsAt).getTime() || Date.now() > new Date(coupon.expiresAt).getTime()) return coupon;
         redeemed = true;
         return { ...coupon, usedCount: coupon.usedCount + 1 };
@@ -304,8 +315,9 @@ function PublicTableMenu() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             tableLabel: `Mesa ${tableNumber}`,
-            customerName: customerName.trim() || undefined,
-            customerPhone: customerPhone.trim() || undefined,
+            customerName: customerName.trim(),
+            customerPhone: customerPhone.trim(),
+            ...(currentCoupon?.coupon ? { couponCode: currentCoupon.coupon.code } : {}),
             paymentMethod,
             items: cart.flatMap((line) => [
               {
@@ -437,11 +449,11 @@ function PublicTableMenu() {
           <p className="mt-1 text-[12px] text-white/80">Seu pedido será enviado direto para a cozinha. Consumo no salão, sem taxa de entrega.</p>
         </section>
 
-        <label className="mb-7 block text-[11px] font-medium text-stone-500">Nome para identificar o pedido (opcional)
-          <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Como podemos chamar você?" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2.5 text-[13px] text-ink" />
+        <label className="mb-7 block text-[11px] font-medium text-stone-500">Nome para identificar o pedido <span className="text-rose-600">*</span>
+          <input required value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Como podemos chamar você?" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2.5 text-[13px] text-ink" />
         </label>
-        <label className="-mt-5 mb-7 block text-[11px] font-medium text-stone-500">WhatsApp para atualizações e ofertas (opcional)
-          <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} inputMode="tel" placeholder="+55 11 99999-0000" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2.5 text-[13px] text-ink" />
+        <label className="-mt-5 mb-7 block text-[11px] font-medium text-stone-500">WhatsApp para atualizações e ofertas <span className="text-rose-600">*</span>
+          <input required type="tel" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} inputMode="tel" placeholder="+55 11 99999-0000" className="mt-1.5 w-full rounded-md border border-black/10 bg-white px-3 py-2.5 text-[13px] text-ink" />
         </label>
 
         <nav aria-label="Navegação da mesa" className="mb-6 flex gap-2 rounded-lg bg-white p-1 shadow-sm">
@@ -555,16 +567,17 @@ function PublicTableMenu() {
               </select>
               <span className="mt-1 block text-[10px] font-normal text-stone-500">O pagamento será confirmado pelo caixa ao encerrar a comanda.</span>
             </label>}
-            {!hasPublicApi() && <div className="mt-4 rounded-md bg-stone-50 p-3">
+            <div className="mt-4 rounded-md bg-stone-50 p-3">
               <label className="block text-[11px] font-semibold text-stone-600">Aplicar cupom de desconto
                 <div className="mt-1.5 flex gap-2">
                   <input value={couponDraft} onChange={(event) => { setCouponDraft(event.target.value.toUpperCase()); setAppliedCouponCode(""); }} placeholder="Ex.: BEMVINDO10" className="min-w-0 flex-1 rounded-md border border-black/10 bg-white px-3 py-2 text-[12px] font-mono" />
                   <button type="button" disabled={!couponPreview.valid} onClick={applyCoupon} className="rounded-md px-3 py-2 text-[11px] font-semibold text-white disabled:bg-stone-300" style={{ backgroundColor: couponPreview.valid ? branding.primaryColor : undefined }}>Aplicar</button>
                 </div>
               </label>
+              {hasPublicApi() && couponLoadError && <p role="alert" className="mt-2 text-[10px] text-rose-600">Não foi possível carregar os cupons: {couponLoadError}</p>}
               {couponDraft.trim() && <p className={`mt-2 text-[10px] ${couponPreview.valid ? "text-emerald-700" : "text-rose-600"}`}>{couponPreview.valid ? `Cupom válido · ${brl(couponPreview.discountAmount)} de desconto${couponPreview.coupon?.kind === "frete-gratis" ? " no frete" : ""}.` : couponPreview.error}</p>}
               {appliedCoupon.valid && <p className="mt-1 text-[10px] font-medium text-emerald-700">Cupom {appliedCoupon.coupon?.code} aplicado.</p>}
-            </div>}
+            </div>
             <div className="mt-3 space-y-2 border-t border-black/5 pt-3 text-[12px]">
               <div className="flex justify-between"><span>Subtotal</span><span>{brl(total)}</span></div>
               {couponDiscount > 0 && <div className="flex justify-between text-emerald-700"><span>Desconto {appliedCoupon.coupon?.code}</span><span>- {brl(couponDiscount)}</span></div>}

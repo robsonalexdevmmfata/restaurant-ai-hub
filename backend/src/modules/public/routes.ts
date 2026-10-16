@@ -14,7 +14,12 @@ import {
   restaurants,
 } from "../../db/schema.js";
 import { scheduleRestaurantEvent } from "../events/service.js";
-import { ClosedTableSessionError, createOrderWithHistory } from "../orders/service.js";
+import * as couponService from "../coupons/service.js";
+import {
+  ClosedTableSessionError,
+  createOrderWithHistory,
+  InvalidCouponError,
+} from "../orders/service.js";
 import * as restaurantAssetService from "../restaurants/assets.js";
 import * as tableService from "../tables/service.js";
 
@@ -27,8 +32,9 @@ const orderItemSchema = z.object({
 
 const publicOrderSchema = z.object({
   tableLabel: z.string().min(1).max(60).optional(),
-  customerName: z.string().max(255).optional(),
-  customerPhone: z.string().max(30).optional(),
+  customerName: z.string().trim().min(2).max(255).optional(),
+  customerPhone: z.string().trim().min(10).max(30).optional(),
+  couponCode: z.string().trim().max(80).optional(),
   paymentMethod: z.enum(["dinheiro", "pix", "cartao", "outros"]).optional(),
   deliveryAddress: z.string().max(500).optional(),
   deliveryNeighborhood: z.string().max(120).optional(),
@@ -40,10 +46,12 @@ const publicOrderSchema = z.object({
 /** Rotas abertas usadas pelo cardápio digital do cliente (QR Code da mesa). */
 export async function publicRoutes(app: FastifyInstance) {
   app.post("/public/restaurants/:slug/tables/:tableLabel/open", async (request, reply) => {
-    const params = z.object({
-      slug: z.string().min(1).max(160),
-      tableLabel: z.string().min(1).max(60),
-    }).safeParse(request.params);
+    const params = z
+      .object({
+        slug: z.string().min(1).max(160),
+        tableLabel: z.string().min(1).max(60),
+      })
+      .safeParse(request.params);
     if (!params.success) return reply.status(400).send({ error: "Link de mesa inválido" });
 
     const [restaurant] = await db
@@ -52,16 +60,21 @@ export async function publicRoutes(app: FastifyInstance) {
       .where(eq(restaurants.slug, params.data.slug))
       .limit(1);
     if (!restaurant) return reply.status(404).send({ error: "Restaurante não encontrado" });
-    const result = await tableService.ensurePublicTableSession(restaurant.id, params.data.tableLabel);
+    const result = await tableService.ensurePublicTableSession(
+      restaurant.id,
+      params.data.tableLabel,
+    );
     if (!result) return reply.status(404).send({ error: "Mesa indisponível" });
     return { session: { id: result.session.id, tableLabel: result.table.label } };
   });
 
   app.get("/public/restaurants/:slug/tables/:tableLabel", async (request, reply) => {
-    const params = z.object({
-      slug: z.string().min(1).max(160),
-      tableLabel: z.string().min(1).max(60),
-    }).safeParse(request.params);
+    const params = z
+      .object({
+        slug: z.string().min(1).max(160),
+        tableLabel: z.string().min(1).max(60),
+      })
+      .safeParse(request.params);
     if (!params.success) return reply.status(400).send({ error: "Link de mesa inválido" });
 
     const [restaurant] = await db
@@ -74,10 +87,12 @@ export async function publicRoutes(app: FastifyInstance) {
   });
 
   app.post("/public/restaurants/:slug/tables/:tableLabel/close-request", async (request, reply) => {
-    const params = z.object({
-      slug: z.string().min(1).max(160),
-      tableLabel: z.string().min(1).max(60),
-    }).safeParse(request.params);
+    const params = z
+      .object({
+        slug: z.string().min(1).max(160),
+        tableLabel: z.string().min(1).max(60),
+      })
+      .safeParse(request.params);
     if (!params.success) return reply.status(400).send({ error: "Link de mesa inválido" });
 
     const [restaurant] = await db
@@ -87,7 +102,8 @@ export async function publicRoutes(app: FastifyInstance) {
       .limit(1);
     if (!restaurant) return reply.status(404).send({ error: "Restaurante não encontrado" });
     const session = await tableService.requestTableClosure(restaurant.id, params.data.tableLabel);
-    if (!session) return reply.status(409).send({ error: "Não há uma comanda aberta para esta mesa" });
+    if (!session)
+      return reply.status(409).send({ error: "Não há uma comanda aberta para esta mesa" });
     scheduleRestaurantEvent(
       restaurant.id,
       "TABLE_CLOSE_REQUESTED",
@@ -102,10 +118,12 @@ export async function publicRoutes(app: FastifyInstance) {
   });
 
   app.get("/public/restaurants/:slug/tables/:tableLabel/stream", async (request, reply) => {
-    const params = z.object({
-      slug: z.string().min(1).max(160),
-      tableLabel: z.string().min(1).max(60),
-    }).safeParse(request.params);
+    const params = z
+      .object({
+        slug: z.string().min(1).max(160),
+        tableLabel: z.string().min(1).max(60),
+      })
+      .safeParse(request.params);
     if (!params.success) return reply.status(400).send({ error: "Link de mesa inválido" });
     const [restaurant] = await db
       .select({ id: restaurants.id })
@@ -123,7 +141,10 @@ export async function publicRoutes(app: FastifyInstance) {
     let previous = "";
     let active = true;
     const sendSnapshot = async () => {
-      const snapshot = await tableService.getPublicTableSession(restaurant.id, params.data.tableLabel);
+      const snapshot = await tableService.getPublicTableSession(
+        restaurant.id,
+        params.data.tableLabel,
+      );
       const serialized = JSON.stringify(snapshot);
       if (serialized === previous || !active) return;
       previous = serialized;
@@ -158,20 +179,19 @@ export async function publicRoutes(app: FastifyInstance) {
   });
 
   app.get("/public/restaurants/:slug/assets/:assetId/image", async (request, reply) => {
-    const params = z.object({
-      slug: z.string().min(1).max(160),
-      assetId: z.coerce.number().int().positive(),
-    }).safeParse(request.params);
+    const params = z
+      .object({
+        slug: z.string().min(1).max(160),
+        assetId: z.coerce.number().int().positive(),
+      })
+      .safeParse(request.params);
     if (!params.success) return reply.status(404).send({ error: "Imagem não encontrada" });
     const [image] = await db
       .select({ data: restaurantAssets.data, mimeType: restaurantAssets.mimeType })
       .from(restaurantAssets)
       .innerJoin(restaurants, eq(restaurantAssets.restaurantId, restaurants.id))
       .where(
-        and(
-          eq(restaurantAssets.id, params.data.assetId),
-          eq(restaurants.slug, params.data.slug),
-        ),
+        and(eq(restaurantAssets.id, params.data.assetId), eq(restaurants.slug, params.data.slug)),
       )
       .limit(1);
     if (!image) return reply.status(404).send({ error: "Imagem não encontrada" });
@@ -259,6 +279,17 @@ export async function publicRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/public/restaurants/:slug/coupons", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    const [restaurant] = await db
+      .select({ id: restaurants.id })
+      .from(restaurants)
+      .where(eq(restaurants.slug, slug))
+      .limit(1);
+    if (!restaurant) return reply.status(404).send({ error: "Restaurante não encontrado" });
+    return couponService.listCoupons(restaurant.id, true);
+  });
+
   app.post("/public/restaurants/:slug/orders", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const parsed = publicOrderSchema.safeParse(request.body);
@@ -291,7 +322,9 @@ export async function publicRoutes(app: FastifyInstance) {
       menuProducts.length !== productIds.length ||
       menuProducts.some((product) => product.status !== "DISPONIVEL")
     ) {
-      return reply.status(409).send({ error: "Um ou mais produtos não estão mais disponíveis. Atualize o cardápio." });
+      return reply
+        .status(409)
+        .send({ error: "Um ou mais produtos não estão mais disponíveis. Atualize o cardápio." });
     }
 
     const currentProducts = new Map(menuProducts.map((product) => [product.id, product]));
@@ -325,7 +358,11 @@ export async function publicRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: "Mesa não encontrada" });
       }
       const session = await tableService.getOpenSession(table.id, restaurant.id);
-      if (!session) return reply.status(409).send({ error: "A comanda foi encerrada. Reabra o cardápio da mesa para iniciar uma nova comanda." });
+      if (!session)
+        return reply.status(409).send({
+          error:
+            "A comanda foi encerrada. Reabra o cardápio da mesa para iniciar uma nova comanda.",
+        });
       tableId = table.id;
       sessionId = session.id;
     }
@@ -344,8 +381,8 @@ export async function publicRoutes(app: FastifyInstance) {
           tableId,
           sessionId,
           source: tableId ? "qrcode" : "delivery",
-          customerName: input.customerName ?? null,
-          customerPhone: input.customerPhone ?? null,
+          customerName: input.customerName,
+          customerPhone: input.customerPhone,
           orderDetails: details,
           itemsJson: items,
           total: total.toFixed(2),
@@ -358,10 +395,14 @@ export async function publicRoutes(app: FastifyInstance) {
           trackingToken,
         },
         "public_menu",
+        input.couponCode,
       );
     } catch (error) {
       if (error instanceof ClosedTableSessionError) {
         return reply.status(409).send({ error: error.message });
+      }
+      if (error instanceof InvalidCouponError) {
+        return reply.status(400).send({ error: error.message });
       }
       throw error;
     }
@@ -377,12 +418,21 @@ export async function publicRoutes(app: FastifyInstance) {
         customerPhone: order.customerPhone,
         items,
         total: order.total,
+        couponCode: order.couponCode,
+        couponDiscount: order.couponDiscount,
         paymentMethod: order.paymentMethod,
         status: order.status,
       },
       request.log,
     );
-    return reply.status(201).send({ id: order.id, sessionId, total, trackingToken });
+    return reply.status(201).send({
+      id: order.id,
+      sessionId,
+      total: Number(order.total),
+      couponCode: order.couponCode,
+      couponDiscount: Number(order.couponDiscount),
+      trackingToken,
+    });
   });
 
   app.get("/public/order-tracking/:token", async (request, reply) => {

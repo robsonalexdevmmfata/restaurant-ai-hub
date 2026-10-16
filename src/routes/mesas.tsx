@@ -138,7 +138,7 @@ function TablesView() {
     const tableLabel = `Mesa ${tableId}`;
     const appUrl = import.meta.env['VITE_PUBLIC_APP_URL']?.replace(/\/$/, "") ||
       (typeof window === "undefined" ? "" : window.location.origin);
-    return `${appUrl}/r/${encodeURIComponent(tenant?.restaurantSlug ?? slug)}?mesa=${encodeURIComponent(tableLabel)}`;
+    return `${appUrl}/r/${encodeURIComponent(tenant.restaurantSlug)}?mesa=${encodeURIComponent(tableLabel)}`;
   }
 
   function printQr(tableId: number) {

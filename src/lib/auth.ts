@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, clearToken, setToken } from "./api";
 
-export type AppRole = "super_admin" | "owner" | "gerente" | "atendente" | "cozinha" | "caixa" | "motoboy";
+export type AppRole =
+  "super_admin" | "owner" | "gerente" | "atendente" | "cozinha" | "caixa" | "motoboy";
 
 export type Tenant = {
   id: string;
@@ -13,6 +14,7 @@ export type Tenant = {
   name: string;
   role: AppRole;
   avatar: string;
+  subscriptionPlan?: "Essencial" | "Profissional" | "Enterprise";
 };
 
 export type RestaurantStaffMember = {
@@ -33,6 +35,7 @@ export type AuthSession = {
 };
 
 const KEY = "restauranteai.session";
+export const ONBOARDING_PENDING_KEY = "restaurantai.onboarding.pending";
 
 type DemoRole = "super_admin" | "owner" | "cozinha" | "caixa" | "motoboy";
 
@@ -47,7 +50,7 @@ export const DEMO_ACCOUNTS: Record<
     restaurantSlug: string;
     owner: string;
     avatar: string;
-    role: AppRole;
+    role: DemoRole;
   }
 > = {
   super_admin: {
@@ -58,7 +61,8 @@ export const DEMO_ACCOUNTS: Record<
     restaurantId: "global",
     restaurantSlug: "rede-restaurantai",
     owner: "Super Admin",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
     role: "super_admin",
   },
   owner: {
@@ -69,7 +73,8 @@ export const DEMO_ACCOUNTS: Record<
     restaurantId: "pv-001",
     restaurantSlug: "pizzaria-vulcao",
     owner: "Marco Silva",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
     role: "owner",
   },
   cozinha: {
@@ -80,7 +85,8 @@ export const DEMO_ACCOUNTS: Record<
     restaurantId: "pv-001",
     restaurantSlug: "pizzaria-vulcao",
     owner: "Marco Silva",
-    avatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=500&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=500&q=80",
     role: "cozinha",
   },
   caixa: {
@@ -91,7 +97,8 @@ export const DEMO_ACCOUNTS: Record<
     restaurantId: "pv-001",
     restaurantSlug: "pizzaria-vulcao",
     owner: "Marco Silva",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80",
     role: "caixa",
   },
   motoboy: {
@@ -102,7 +109,8 @@ export const DEMO_ACCOUNTS: Record<
     restaurantId: "pv-001",
     restaurantSlug: "pizzaria-vulcao",
     owner: "Marco Silva",
-    avatar: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=500&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=500&q=80",
     role: "motoboy",
   },
 };
@@ -159,13 +167,27 @@ export function updateProfile(input: Pick<Tenant, "name" | "avatar">) {
   return next;
 }
 
+export function updateTenantRestaurant(input: Pick<Tenant, "restaurant" | "restaurantSlug">) {
+  const current = getTenant();
+  if (!current) throw new Error("Entre novamente para atualizar os dados do restaurante.");
+  const next = { ...current, ...input };
+  setSession(next);
+  return next;
+}
+
 function restoreProfile(tenant: Tenant): Tenant {
   try {
     const raw = window.localStorage.getItem(`restaurantai.profile.${tenant.email}`);
     if (!raw) return tenant;
     const profile = JSON.parse(raw) as Pick<Tenant, "name" | "avatar">;
-    return { ...tenant, name: profile.name || tenant.name, avatar: profile.avatar || tenant.avatar };
-  } catch { return tenant; }
+    return {
+      ...tenant,
+      name: profile.name || tenant.name,
+      avatar: profile.avatar || tenant.avatar,
+    };
+  } catch {
+    return tenant;
+  }
 }
 
 function normalizeApiRole(role: string): AppRole {
@@ -177,7 +199,8 @@ function normalizeApiRole(role: string): AppRole {
     role === "cozinha" ||
     role === "caixa" ||
     role === "motoboy"
-  ) return role;
+  )
+    return role;
   throw new Error("Este perfil ainda não possui uma área de acesso configurada.");
 }
 
@@ -225,10 +248,13 @@ export async function signIn(email: string, password: string): Promise<Tenant> {
       restaurant: response.restaurant.name,
       restaurantId: String(response.restaurant.id),
       restaurantSlug: response.restaurant.slug,
+      subscriptionPlan: response.restaurant.subscriptionPlan,
       owner: response.restaurant.name,
       name: response.user.name ?? response.user.email,
       role,
-      avatar: Object.values(DEMO_ACCOUNTS).find((account) => account.role === role)?.avatar ?? DEMO_ACCOUNTS.owner.avatar,
+      avatar:
+        Object.values(DEMO_ACCOUNTS).find((account) => account.role === role)?.avatar ??
+        DEMO_ACCOUNTS.owner.avatar,
     };
     setSession(tenant);
     return tenant;
@@ -238,6 +264,33 @@ export async function signIn(email: string, password: string): Promise<Tenant> {
     }
     throw error;
   }
+}
+
+export async function registerOwner(input: {
+  ownerName: string;
+  restaurantName: string;
+  email: string;
+  password: string;
+  whatsapp: string;
+  plan: NonNullable<Tenant["subscriptionPlan"]>;
+}) {
+  const response = await api.register(input);
+  const tenant: Tenant = {
+    id: String(response.user.id),
+    email: response.user.email,
+    restaurant: response.restaurant.name,
+    restaurantId: String(response.restaurant.id),
+    restaurantSlug: response.restaurant.slug,
+    subscriptionPlan: response.restaurant.subscriptionPlan,
+    owner: response.restaurant.name,
+    name: response.user.name ?? input.ownerName,
+    role: "owner",
+    avatar: DEMO_ACCOUNTS.owner.avatar,
+  };
+  setToken(response.token);
+  setSession(tenant);
+  window.localStorage.setItem(ONBOARDING_PENDING_KEY, tenant.restaurantSlug);
+  return tenant;
 }
 
 export function signInAs(role: DemoRole): Tenant {
@@ -282,7 +335,9 @@ export function useSession() {
     refresh();
     setLoading(false);
     window.addEventListener("restaurantai:session", refresh);
-    const onStorage = (event: StorageEvent) => { if (event.key === KEY) refresh(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === KEY) refresh();
+    };
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener("restaurantai:session", refresh);

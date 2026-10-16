@@ -38,9 +38,24 @@ export const chats: Chat[] = [
     mode: "ia",
     status: "Pedido em andamento",
     messages: [
-      { id: "m1", sender: "cliente", text: "Oi! Gostaria de pedir uma pizza de 8 fatias, pode ser?", time: "18:38" },
-      { id: "m2", sender: "ia", text: "Claro! Temos borda recheada de catupiry ou cheddar. Qual você prefere?", time: "18:39" },
-      { id: "m3", sender: "cliente", text: "Borda recheada de catupiry, por favor. E mais um refrigerante de 1L.", time: "18:41" },
+      {
+        id: "m1",
+        sender: "cliente",
+        text: "Oi! Gostaria de pedir uma pizza de 8 fatias, pode ser?",
+        time: "18:38",
+      },
+      {
+        id: "m2",
+        sender: "ia",
+        text: "Claro! Temos borda recheada de catupiry ou cheddar. Qual você prefere?",
+        time: "18:39",
+      },
+      {
+        id: "m3",
+        sender: "cliente",
+        text: "Borda recheada de catupiry, por favor. E mais um refrigerante de 1L.",
+        time: "18:41",
+      },
       {
         id: "m4",
         sender: "ia",
@@ -66,9 +81,24 @@ export const chats: Chat[] = [
     status: "Aguardando atendente",
     messages: [
       { id: "m1", sender: "cliente", text: "Qual o prazo de entrega?", time: "18:36" },
-      { id: "m2", sender: "ia", text: "Hoje estamos entregando em cerca de 40 minutos na sua região.", time: "18:37" },
-      { id: "m3", sender: "cliente", text: "Preciso para um evento, consigo falar com alguém?", time: "18:39" },
-      { id: "m4", sender: "humano", text: "Oi João, aqui é o Marco. Me conta quantas pessoas são?", time: "18:39" },
+      {
+        id: "m2",
+        sender: "ia",
+        text: "Hoje estamos entregando em cerca de 40 minutos na sua região.",
+        time: "18:37",
+      },
+      {
+        id: "m3",
+        sender: "cliente",
+        text: "Preciso para um evento, consigo falar com alguém?",
+        time: "18:39",
+      },
+      {
+        id: "m4",
+        sender: "humano",
+        text: "Oi João, aqui é o Marco. Me conta quantas pessoas são?",
+        time: "18:39",
+      },
     ],
     cart: [{ name: "Pizza família calabresa", qty: 3, price: 74.5 }],
     note: "Pedido para evento corporativo às 21h.",
@@ -85,7 +115,12 @@ export const chats: Chat[] = [
     status: "Pedido confirmado",
     messages: [
       { id: "m1", sender: "cliente", text: "Confirmou meu pedido?", time: "18:30" },
-      { id: "m2", sender: "ia", text: "Sim! Pedido #4821 confirmado e já entrou na produção. 🍕", time: "18:31" },
+      {
+        id: "m2",
+        sender: "ia",
+        text: "Sim! Pedido #4821 confirmado e já entrou na produção. 🍕",
+        time: "18:31",
+      },
     ],
     cart: [
       { name: "Pizza média marguerita", qty: 1, price: 48.9 },
@@ -104,8 +139,18 @@ export const chats: Chat[] = [
     mode: "ia",
     status: "Escolhendo itens",
     messages: [
-      { id: "m1", sender: "cliente", text: "Boa noite, vocês têm opção vegetariana?", time: "18:23" },
-      { id: "m2", sender: "ia", text: "Temos a Vegetariana da Casa e a Marguerita. Quer ver os ingredientes?", time: "18:24" },
+      {
+        id: "m1",
+        sender: "cliente",
+        text: "Boa noite, vocês têm opção vegetariana?",
+        time: "18:23",
+      },
+      {
+        id: "m2",
+        sender: "ia",
+        text: "Temos a Vegetariana da Casa e a Marguerita. Quer ver os ingredientes?",
+        time: "18:24",
+      },
     ],
     cart: [],
     note: "Sem lactose se possível.",
@@ -135,7 +180,12 @@ export const kpis = [
   { label: "Atendimentos hoje", value: "482", note: "▲ 12% vs ontem", accent: true },
   { label: "Pedidos fechados pela IA", value: "137", note: "28% do total", accent: false },
   { label: "Faturamento estimado", value: "R$ 9.640", note: "▲ 8% vs ontem", accent: true },
-  { label: "Taxa de resolução da IA", value: "94%", note: "12 assumidos por humano", accent: false },
+  {
+    label: "Taxa de resolução da IA",
+    value: "94%",
+    note: "12 assumidos por humano",
+    accent: false,
+  },
 ];
 
 export type MenuItem = {
@@ -149,23 +199,110 @@ export type MenuItem = {
 };
 
 export const menu: MenuItem[] = [
-  { id: "1", category: "Pizzas salgadas", name: "Marguerita", description: "Molho de tomate, muçarela, manjericão fresco", price: 48.9, available: true, imageUrl: "https://images.unsplash.com/photo-1579751626657-72bc17010498?auto=format&fit=crop&w=900&q=85" },
-  { id: "2", category: "Pizzas salgadas", name: "Calabresa artesanal", description: "Calabresa fatiada, cebola roxa, orégano", price: 54.9, available: true, imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&w=900&q=85" },
-  { id: "3", category: "Pizzas salgadas", name: "Vegetariana da Casa", description: "Abobrinha, berinjela, tomate seco, muçarela", price: 56.9, available: true, imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85" },
-  { id: "4", category: "Pizzas doces", name: "Banana com canela", description: "Banana caramelizada, canela, leite condensado", price: 39.9, available: false, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
-  { id: "5", category: "Adicionais", name: "Borda recheada catupiry", description: "Borda generosa com catupiry original", price: 12, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
-  { id: "6", category: "Bebidas", name: "Refrigerante 1L", description: "Cola, guaraná ou laranja", price: 8, available: true, imageUrl: "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=900&q=85" },
-  { id: "7", category: "Bebidas", name: "Água com gás 500ml", description: "Garrafa individual gelada", price: 6, available: true, imageUrl: "https://images.unsplash.com/photo-1559839914-17aae19cec71?auto=format&fit=crop&w=900&q=85" },
-  { id: "8", category: "Pizzas salgadas", name: "Quatro queijos", description: "Muçarela, provolone, parmesão e gorgonzola", price: 59.9, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
-  { id: "9", category: "Pizzas salgadas", name: "Frango com catupiry", description: "Frango desfiado temperado, catupiry e orégano", price: 57.9, available: true, imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&w=900&q=85" },
-  { id: "10", category: "Pizzas doces", name: "Chocolate com morango", description: "Chocolate ao leite cremoso com morangos frescos", price: 45.9, available: true, imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=900&q=85" },
-  { id: "11", category: "Bebidas", name: "Limonada da casa", description: "Limão espremido na hora, servida bem gelada", price: 9.9, available: true, imageUrl: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=85" },
+  {
+    id: "1",
+    category: "Combinados",
+    name: "Combinado Sakura",
+    description: "16 peças variadas com salmão fresco, atum e uramaki da casa.",
+    price: 64.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-sakura.jpg",
+  },
+  {
+    id: "2",
+    category: "Combinados",
+    name: "Combinado Salmão",
+    description: "12 peças de salmão: niguiris, uramakis e sashimis.",
+    price: 54.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-salmon.jpg",
+  },
+  {
+    id: "3",
+    category: "Quentes",
+    name: "Hot roll de salmão",
+    description: "8 unidades crocantes, recheadas com salmão e cream cheese.",
+    price: 32.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-hot-roll.jpg",
+  },
+  {
+    id: "4",
+    category: "Pratos quentes",
+    name: "Ramen tonkotsu",
+    description: "Caldo encorpado, noodles, chashu, ovo marinado e cebolinha.",
+    price: 42.9,
+    available: true,
+    imageUrl: "/demo-assets/ramen.jpg",
+  },
+  {
+    id: "5",
+    category: "Temakis",
+    name: "Temaki de salmão",
+    description: "Cone de alga crocante com arroz temperado e salmão fresco.",
+    price: 29.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-salmon.jpg",
+  },
+  {
+    id: "6",
+    category: "Bebidas",
+    name: "Chá verde gelado",
+    description: "Chá verde levemente adocicado, servido bem gelado.",
+    price: 8,
+    available: true,
+    imageUrl: "/demo-assets/sakura-cover.jpg",
+  },
+  {
+    id: "7",
+    category: "Entradas",
+    name: "Edamame",
+    description: "Vagens de soja cozidas no vapor com flor de sal.",
+    price: 18.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-sakura.jpg",
+  },
+  {
+    id: "8",
+    category: "Sashimis",
+    name: "Sashimi de salmão",
+    description: "Fatias de salmão fresco, cortadas na hora.",
+    price: 36.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-salmon.jpg",
+  },
+  {
+    id: "9",
+    category: "Quentes",
+    name: "Guioza",
+    description: "Pastéis japoneses grelhados, recheados com carne e vegetais.",
+    price: 24.9,
+    available: true,
+    imageUrl: "/demo-assets/ramen.jpg",
+  },
+  {
+    id: "10",
+    category: "Combinados",
+    name: "Combinado Hot",
+    description: "Seleção de hot rolls crocantes preparados na hora.",
+    price: 39.9,
+    available: true,
+    imageUrl: "/demo-assets/sushi-hot-roll.jpg",
+  },
+  {
+    id: "11",
+    category: "Bebidas",
+    name: "Limonada japonesa",
+    description: "Limão espremido na hora, servida bem gelada.",
+    price: 9.9,
+    available: true,
+    imageUrl: "/demo-assets/sakura-cover.jpg",
+  },
 ];
 
-export const defaultPrompt = `Você é o atendente virtual da Pizzaria Vulcão. Seja educado, objetivo e use no máximo duas frases por mensagem.
-Sempre confirme o tamanho da pizza e ofereça borda recheada de catupiry ou cheddar.
+export const defaultPrompt = `Você é o atendente virtual do Sakura Sushi. Seja educado, objetivo e use no máximo duas frases por mensagem.
+Apresente com clareza os combinados, sushis e pratos quentes do cardápio.
 Antes de fechar o pedido, confirme endereço completo, forma de pagamento e leia o resumo do carrinho.
 Se o cliente pedir desconto, reclamar ou pedir para falar com uma pessoa, transfira imediatamente para o atendimento humano.`;
 
-export const brl = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

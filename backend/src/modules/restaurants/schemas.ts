@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const updateRestaurantSchema = z.object({
   name: z.string().min(2).max(255).optional(),
-  slug: z.string().min(2).max(255).optional(),
+  slug: z.string().min(2).max(255).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   whatsappInstance: z.string().min(2).max(255).optional(),
   aiInstructions: z.string().optional(),
   description: z.string().max(2000).optional(),

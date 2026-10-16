@@ -1,13 +1,15 @@
 /** Cliente do backend Fastify (backend/) que fala com o PostgreSQL local. */
 
 export const API_URL =
-  (import.meta.env['VITE_API_URL'] as string | undefined)?.replace(/\/$/, "") ??
-  import.meta.env['VITE_API_BASE_URL']?.replace(/\/$/, "") ??
+  (import.meta.env["VITE_API_URL"] as string | undefined)?.replace(/\/$/, "") ??
+  import.meta.env["VITE_API_BASE_URL"]?.replace(/\/$/, "") ??
   "http://localhost:3001";
 
 export function apiAssetUrl(path: string | null | undefined): string {
   if (!path) return "";
-  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) return path;
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:"))
+    return path;
+  if (path.startsWith("/demo-assets/")) return path;
   return `${API_URL}/api${path.startsWith("/") ? path : `/${path}`}`;
 }
 
@@ -56,10 +58,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const payload = text ? (JSON.parse(text) as Record<string, unknown>) : {};
 
   if (!response.ok) {
-    throw new ApiError(
-      (payload['error'] as string) ?? `Erro ${response.status}`,
-      response.status,
-    );
+    throw new ApiError((payload["error"] as string) ?? `Erro ${response.status}`, response.status);
   }
 
   return payload as T;
@@ -80,6 +79,8 @@ export type ApiRestaurant = {
   id: number;
   name: string;
   slug: string;
+  subscriptionPlan: "Essencial" | "Profissional" | "Enterprise";
+  subscriptionStatus: "simulado" | "ativo" | "suspenso";
   whatsappInstance: string;
   aiInstructions: string | null;
   description: string | null;
@@ -98,6 +99,19 @@ export type ApiRestaurant = {
   kind: string | null;
   openingHours: string | null;
   isOpen: boolean;
+};
+
+export type ApiAiIntegrationStatus = {
+  evolutionConnectionState: string;
+  evolutionInstanceConnected: boolean;
+};
+
+export type ApiEvolutionInstanceResult = {
+  instance: string;
+  state: string;
+  qrCode: string | null;
+  created: boolean;
+  webhookConfigured: boolean;
 };
 
 export type ApiMenu = {
@@ -163,6 +177,8 @@ export type ApiOrder = {
   orderDetails: string;
   itemsJson: ApiOrderItem[] | null;
   total: string;
+  couponCode?: string | null;
+  couponDiscount?: string;
   notes: string | null;
   paymentMethod?: string | null;
   deliveryAddress?: string | null;
@@ -218,7 +234,22 @@ export type ApiDelivery = {
 export type PublicMenuResponse = {
   restaurant: Pick<
     ApiRestaurant,
-    "id" | "name" | "slug" | "description" | "logoUrl" | "coverUrl" | "primaryColor" | "faviconUrl" | "phone" | "whatsapp" | "address" | "city" | "state" | "openingHours" | "publicPolicy" | "isOpen"
+    | "id"
+    | "name"
+    | "slug"
+    | "description"
+    | "logoUrl"
+    | "coverUrl"
+    | "primaryColor"
+    | "faviconUrl"
+    | "phone"
+    | "whatsapp"
+    | "address"
+    | "city"
+    | "state"
+    | "openingHours"
+    | "publicPolicy"
+    | "isOpen"
   >;
   menu: { id: number; name: string; slug: string } | null;
   products: ApiProduct[];
@@ -233,6 +264,19 @@ export type ApiPromotion = {
   sortOrder: number;
   isActive?: boolean;
   imageUrl: string;
+};
+
+export type ApiCoupon = {
+  id: string;
+  code: string;
+  kind: "percentual" | "valor-fixo" | "frete-gratis";
+  value: number;
+  startsAt: string;
+  expiresAt: string;
+  maxUses: number;
+  usedCount: number;
+  active: boolean;
+  createdAt: string;
 };
 
 export type AuthResponse = {
@@ -252,6 +296,7 @@ export const api = {
 
   register: (input: {
     restaurantName: string;
+    plan: ApiRestaurant["subscriptionPlan"];
     email: string;
     password: string;
     ownerName?: string | undefined;
@@ -272,6 +317,12 @@ export const api = {
 
   /* restaurante */
   getRestaurant: () => request<ApiRestaurant>("/me/restaurant"),
+  getAiIntegrationStatus: () => request<ApiAiIntegrationStatus>("/me/ai/status"),
+  createEvolutionInstance: (restaurantName: string) =>
+    request<ApiEvolutionInstanceResult>("/me/ai/instance", {
+      method: "POST",
+      body: JSON.stringify({ restaurantName }),
+    }),
   updateRestaurant: (input: Partial<ApiRestaurant>) =>
     request<ApiRestaurant>("/me/restaurant", { method: "PATCH", body: JSON.stringify(input) }),
   uploadRestaurantLogo: (image: string) =>
@@ -292,11 +343,31 @@ export const api = {
   createPromotion: (input: { title: string; description?: string; image: string }) =>
     request<{ id: number }>("/me/promotions", { method: "POST", body: JSON.stringify(input) }),
   deletePromotion: (id: number) => request<void>(`/me/promotions/${id}`, { method: "DELETE" }),
+  listCoupons: () => request<ApiCoupon[]>("/me/coupons"),
+  createCoupon: (
+    input: Omit<ApiCoupon, "id" | "usedCount" | "active" | "createdAt"> & {
+      active?: boolean;
+      usedCount?: number;
+    },
+  ) =>
+    request<ApiCoupon>("/me/coupons", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateCoupon: (id: string, input: { active: boolean }) =>
+    request<ApiCoupon>(`/me/coupons/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
 
   /* cardápios */
   listMenus: () => request<ApiMenu[]>("/me/menus"),
-  createMenu: (input: { name: string; slug?: string; aiInstructions?: string; isActive?: boolean }) =>
-    request<ApiMenu>("/me/menus", { method: "POST", body: JSON.stringify(input) }),
+  createMenu: (input: {
+    name: string;
+    slug?: string;
+    aiInstructions?: string;
+    isActive?: boolean;
+  }) => request<ApiMenu>("/me/menus", { method: "POST", body: JSON.stringify(input) }),
   updateMenu: (
     id: number,
     input: { name?: string; slug?: string; aiInstructions?: string; isActive?: boolean },
@@ -344,22 +415,24 @@ export const api = {
       body: JSON.stringify({ status: "ENTREGUE" }),
     }),
   deliveryHistory: (orderId: number) =>
-    request<{ driverId: number | null; driverName: string | null; status: string; occurredAt: string }[]>(
-      `/me/deliveries/${orderId}/history`,
-    ),
+    request<
+      { driverId: number | null; driverName: string | null; status: string; occurredAt: string }[]
+    >(`/me/deliveries/${orderId}/history`),
   listDeliveryHistory: () =>
-    request<{
-      orderId: number;
-      customerName: string | null;
-      customerPhone: string | null;
-      deliveryAddress: string | null;
-      deliveryNeighborhood: string | null;
-      orderDetails: string;
-      total: string;
-      driverId: number | null;
-      driverName: string | null;
-      deliveredAt: string | null;
-    }[]>("/me/deliveries/history"),
+    request<
+      {
+        orderId: number;
+        customerName: string | null;
+        customerPhone: string | null;
+        deliveryAddress: string | null;
+        deliveryNeighborhood: string | null;
+        orderDetails: string;
+        total: string;
+        driverId: number | null;
+        driverName: string | null;
+        deliveredAt: string | null;
+      }[]
+    >("/me/deliveries/history"),
 
   /* caixa */
   listOpenSessions: () => request<ApiSession[]>("/me/cashier/sessions"),
@@ -408,18 +481,28 @@ export const api = {
     request<PublicMenuResponse>(
       `/public/restaurants/${slug}${menuSlug ? `?menu=${menuSlug}` : ""}`,
     ),
+  publicCoupons: (slug: string) =>
+    request<ApiCoupon[]>(`/public/restaurants/${encodeURIComponent(slug)}/coupons`),
   publicOrder: (
     slug: string,
     input: {
       tableLabel?: string | undefined;
       customerName?: string | undefined;
       customerPhone?: string | undefined;
+      couponCode?: string | undefined;
       paymentMethod?: PaymentMethod | undefined;
       notes?: string | undefined;
       items: ApiOrderItem[];
     },
   ) =>
-    request<{ id: number; sessionId: number | null; total: number; trackingToken: string }>(`/public/restaurants/${slug}/orders`, {
+    request<{
+      id: number;
+      sessionId: number | null;
+      total: number;
+      couponCode: string | null;
+      couponDiscount: number;
+      trackingToken: string;
+    }>(`/public/restaurants/${slug}/orders`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
