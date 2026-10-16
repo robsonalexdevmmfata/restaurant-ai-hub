@@ -33,6 +33,8 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Visão geral · RestauranteAI" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Atendimentos, pedidos fechados pela IA e faturamento estimado do dia." },
       { property: "og:title", content: "Visão geral · RestauranteAI" },
       { property: "og:description", content: "Métricas do dia do seu atendimento por IA no WhatsApp." },
@@ -149,6 +151,7 @@ function Dashboard() {
     if (!tenant) return;
     const printed = printThermalReceipt({
       kind: "summary",
+      restaurantSlug: tenant.restaurantSlug,
       restaurant: tenant.restaurant,
       cnpj: branding.cnpj,
       documentId: new Date().toLocaleDateString("pt-BR"),

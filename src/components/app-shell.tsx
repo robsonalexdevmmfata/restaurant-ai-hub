@@ -155,7 +155,7 @@ export function AppShell({
           <Link
             to="/r/$slug"
             params={{ slug: tenant.restaurantSlug }}
-            search={{ mesa: undefined }}
+            search={{ mesa: undefined, menu: undefined, pedido: undefined }}
             target="_blank"
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium hover:bg-white/5"
           >

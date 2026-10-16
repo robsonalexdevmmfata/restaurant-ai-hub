@@ -64,6 +64,7 @@ function CashierView() {
     if (!tenant) return;
     const opened = printThermalReceipt({
       kind,
+      restaurantSlug: tenant.restaurantSlug,
       restaurant: tenant.restaurant,
       cnpj: branding.cnpj,
       documentId: order.id,

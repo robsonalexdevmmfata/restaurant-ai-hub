@@ -205,6 +205,7 @@ function CounterPdv() {
     setManualPaymentConfirmed(false);
     const printed = printThermalReceipt({
       kind: "sale",
+      restaurantSlug: tenant.restaurantSlug,
       restaurant: tenant.restaurant,
       cnpj: branding.cnpj,
       documentId: orderId,

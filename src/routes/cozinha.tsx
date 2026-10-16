@@ -103,6 +103,7 @@ function KitchenView() {
     if (!tenant || !order) return;
     const opened = printThermalReceipt({
       kind: "kitchen",
+      restaurantSlug: tenant.restaurantSlug,
       restaurant: tenant.restaurant,
       cnpj: branding.cnpj,
       documentId: order.id,

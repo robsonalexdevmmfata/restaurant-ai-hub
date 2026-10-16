@@ -55,6 +55,7 @@ export function PrintDevicePanel({ restaurant, slug, cnpj }: { restaurant: strin
   function testPrint() {
     const opened = printThermalReceipt({
       kind: "test",
+      restaurantSlug: slug,
       restaurant,
       cnpj,
       documentId: `TESTE-${Date.now().toString().slice(-5)}`,
