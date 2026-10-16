@@ -19,6 +19,7 @@ import { Route as ConversasRouteImport } from './routes/conversas'
 import { Route as CozinhaRouteImport } from './routes/cozinha'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeliveryRouteImport } from './routes/delivery'
+import { Route as ImpressoraRouteImport } from './routes/impressora'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MesasRouteImport } from './routes/mesas'
 import { Route as MotoboyRouteImport } from './routes/motoboy'
@@ -79,6 +80,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const DeliveryRoute = DeliveryRouteImport.update({
   id: '/delivery',
   path: '/delivery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImpressoraRoute = ImpressoraRouteImport.update({
+  id: '/impressora',
+  path: '/impressora',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/impressora': typeof ImpressoraRoute
   '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
   '/motoboy': typeof MotoboyRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/impressora': typeof ImpressoraRoute
   '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
   '/motoboy': typeof MotoboyRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/cozinha': typeof CozinhaRoute
   '/dashboard': typeof DashboardRoute
   '/delivery': typeof DeliveryRoute
+  '/impressora': typeof ImpressoraRoute
   '/login': typeof LoginRoute
   '/mesas': typeof MesasRoute
   '/motoboy': typeof MotoboyRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/impressora'
     | '/login'
     | '/mesas'
     | '/motoboy'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/impressora'
     | '/login'
     | '/mesas'
     | '/motoboy'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/cozinha'
     | '/dashboard'
     | '/delivery'
+    | '/impressora'
     | '/login'
     | '/mesas'
     | '/motoboy'
@@ -290,6 +302,7 @@ export interface RootRouteChildren {
   CozinhaRoute: typeof CozinhaRoute
   DashboardRoute: typeof DashboardRoute
   DeliveryRoute: typeof DeliveryRoute
+  ImpressoraRoute: typeof ImpressoraRoute
   LoginRoute: typeof LoginRoute
   MesasRoute: typeof MesasRoute
   MotoboyRoute: typeof MotoboyRoute
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       path: '/delivery'
       fullPath: '/delivery'
       preLoaderRoute: typeof DeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impressora': {
+      id: '/impressora'
+      path: '/impressora'
+      fullPath: '/impressora'
+      preLoaderRoute: typeof ImpressoraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -477,6 +497,7 @@ const rootRouteChildren: RootRouteChildren = {
   CozinhaRoute: CozinhaRoute,
   DashboardRoute: DashboardRoute,
   DeliveryRoute: DeliveryRoute,
+  ImpressoraRoute: ImpressoraRoute,
   LoginRoute: LoginRoute,
   MesasRoute: MesasRoute,
   MotoboyRoute: MotoboyRoute,
