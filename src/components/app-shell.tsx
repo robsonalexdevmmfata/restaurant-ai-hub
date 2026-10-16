@@ -17,6 +17,7 @@ import {
   Palette,
   TicketPercent,
   ExternalLink,
+  Printer,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -40,6 +41,7 @@ const ownerNavigation: AppNavItem[] = [
     { to: "/conversas", label: "Conversas", icon: MessageSquare, badge: "3" },
     { to: "/cardapio", label: "Cardápio", icon: UtensilsCrossed },
     { to: "/personalizacao", label: "Personalização", icon: Palette },
+    { to: "/impressora", label: "Impressora", icon: Printer },
     { to: "/promocoes", label: "Promoções", icon: TicketPercent },
     { to: "/mesas", label: "Mesas", icon: TableProperties },
     { to: "/pdv", label: "PDV", icon: Store },
@@ -153,6 +155,7 @@ export function AppShell({
           <Link
             to="/r/$slug"
             params={{ slug: tenant.restaurantSlug }}
+            search={{ mesa: undefined, menu: undefined, pedido: undefined }}
             target="_blank"
             className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium hover:bg-white/5"
           >

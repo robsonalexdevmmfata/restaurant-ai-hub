@@ -17,11 +17,15 @@ const plans: {
 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (search: Record<string, unknown>) => ({
-    plan: typeof search.plan === "string" ? search.plan : undefined,
+    plan: typeof search["plan"] === "string" ? search["plan"] : undefined,
   }),
   head: () => ({
     meta: [
       { title: "Criar conta — RestauranteAI" },
+      { property: "og:title", content: "Criar conta — RestauranteAI" },
+      { property: "og:description", content: "Crie a conta do seu restaurante e escolha seu plano." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Crie a conta do seu restaurante e escolha seu plano." },
     ],
   }),

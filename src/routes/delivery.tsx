@@ -12,6 +12,8 @@ export const Route = createFileRoute("/delivery")({
   head: () => ({
     meta: [
       { title: "Delivery — RestauranteAI" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Pedidos de entrega do restaurante." },
       { property: "og:title", content: "Delivery — RestauranteAI" },
       { property: "og:description", content: "Pedidos de entrega do restaurante." },

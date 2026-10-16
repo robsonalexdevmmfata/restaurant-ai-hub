@@ -161,7 +161,7 @@ function Login() {
           )}
           <p className="mt-4 text-center text-sm text-stone-500">
             Ainda não tem conta?{" "}
-            <Link to="/cadastro" className="font-semibold text-brand hover:underline">
+            <Link to="/cadastro" search={{ plan: undefined }} className="font-semibold text-brand hover:underline">
               Cadastre seu restaurante
             </Link>
           </p>

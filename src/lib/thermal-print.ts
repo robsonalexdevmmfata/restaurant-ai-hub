@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { brl } from "@/lib/mock";
+import { getThermalSettings, type ThermalSettings } from "@/lib/thermal-settings";
 
 export type ThermalPaperWidth = "58mm" | "80mm";
 export type ThermalLine = { name: string; quantity: number; unitPrice: number };
@@ -9,6 +10,7 @@ export type ThermalKeyValue = { label: string; value: string };
 export type ThermalReceipt = {
   kind: "kitchen" | "payment" | "sale" | "summary" | "test";
   restaurant: string;
+  restaurantSlug?: string;
   cnpj?: string | undefined;
   documentId?: string | undefined;
   customer?: string | undefined;
@@ -68,10 +70,7 @@ function pair(label: string, value: string) {
   return `<div class="pair"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`;
 }
 
-export function printThermalReceipt(receipt: ThermalReceipt, paperWidth: ThermalPaperWidth = "80mm") {
-  const printWindow = window.open("", "_blank", "width=420,height=760");
-  if (!printWindow) return false;
-
+export function renderThermalReceipt(receipt: ThermalReceipt, paperWidth: ThermalPaperWidth = "80mm", settings?: ThermalSettings) {
   const widthInMm = paperWidth === "58mm" ? 54 : 74;
   const titleByKind: Record<ThermalReceipt["kind"], string> = {
     kitchen: "COMANDA · COZINHA",
@@ -103,27 +102,38 @@ export function printThermalReceipt(receipt: ThermalReceipt, paperWidth: Thermal
   ].join("");
   const note = receipt.note ? `<div class="note"><strong>Observação</strong><br>${escapeHtml(receipt.note)}</div>` : "";
   const cnpj = pair("CNPJ", receipt.cnpj?.trim() || "Não informado");
-  const footer = escapeHtml(receipt.footer ?? "Obrigado pela preferência!");
+  const footer = escapeHtml(settings && receipt.kind !== "kitchen" && receipt.kind !== "summary" ? settings.footer : receipt.footer ?? "Obrigado pela preferência!");
+  const logo = settings?.showLogo && settings.logo.startsWith("data:image/png;base64,") ? `<img class="logo" src="${escapeHtml(settings.logo)}" alt="Logo do restaurante">` : "";
 
-  printWindow.document.open();
-  printWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(titleByKind[receipt.kind])}</title><style>
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(titleByKind[receipt.kind])}</title><style>
     @page{size:${paperWidth} auto;margin:0}
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#111}
     body{width:${widthInMm}mm;margin:0 auto;padding:3mm 2mm;font:11px/1.35 "Courier New",Courier,monospace;overflow-wrap:anywhere}
     .center{text-align:center}.brand{font-size:15px;font-weight:700;line-height:1.2}.kind{margin-top:3px;font-size:10px;font-weight:700}
+    .logo{display:block;max-width:75%;width:auto;max-height:28mm;object-fit:contain;margin:0 auto 3mm}.footer{white-space:pre-wrap}
     .pair{display:flex;justify-content:space-between;gap:5px;margin:2px 0}.pair span:first-child{flex:1;min-width:0}.pair span:last-child{text-align:right;max-width:62%;overflow-wrap:anywhere}
     .cnpj{padding-bottom:5px;border-bottom:1px dashed #444;margin-bottom:5px}
     .metadata{padding:3px 0}.items{border-top:1px dashed #444;border-bottom:1px dashed #444;padding:4px 0;margin:4px 0}
     .item{padding:3px 0}.item-name{font-weight:700;overflow-wrap:anywhere}.total{font-size:13px;font-weight:700;border-top:1px dashed #444;padding-top:5px;margin-top:5px}
     .note{margin:5px 0;padding:4px 0;border-top:1px dashed #777;border-bottom:1px dashed #777}.footer{margin-top:9px;text-align:center}.cut{margin-top:8px;border-top:1px dashed #555;text-align:center;padding-top:3px;font-size:9px;color:#444}
     @media print{html,body{width:${widthInMm}mm;margin:0;padding:0;background:#fff}.receipt{padding:3mm 2mm}.cut{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-  </style></head><body><main class="receipt"><header class="center"><div class="brand">${escapeHtml(receipt.restaurant)}</div><div class="kind">${escapeHtml(titleByKind[receipt.kind])}</div></header><section class="cnpj">${cnpj}</section><section class="metadata">${metadata}${fields}</section>${itemRows ? `<section class="items">${itemRows}</section>` : ""}${note}${totals}${payment}<footer class="footer">${footer}</footer><div class="cut">- - - - - - - - CORTE - - - - - - - -</div></main></body></html>`);
+  </style></head><body><main class="receipt"><header class="center">${logo}<div class="brand">${escapeHtml(receipt.restaurant)}</div><div class="kind">${escapeHtml(titleByKind[receipt.kind])}</div></header><section class="cnpj">${cnpj}</section><section class="metadata">${metadata}${fields}</section>${itemRows ? `<section class="items">${itemRows}</section>` : ""}${note}${totals}${payment}<footer class="footer">${footer}</footer><div class="cut">- - - - - - - - CORTE - - - - - - - -</div></main></body></html>`;
+}
+
+export function printThermalReceipt(receipt: ThermalReceipt, paperWidth: ThermalPaperWidth = "80mm", settings?: ThermalSettings) {
+  const printWindow = window.open("", "_blank", "width=420,height=760");
+  if (!printWindow) return false;
+  const savedSettings = settings ?? (receipt.restaurantSlug ? getThermalSettings(receipt.restaurantSlug) : undefined);
+  printWindow.document.open();
+  printWindow.document.write(renderThermalReceipt(receipt, paperWidth, savedSettings));
   printWindow.document.close();
-  window.setTimeout(() => {
+  const print = () => {
     if (printWindow.closed) return;
     printWindow.focus();
     printWindow.print();
-  }, 300);
+  };
+  const images = Array.from(printWindow.document.images);
+  Promise.all(images.map((image) => image.decode().catch(() => undefined))).then(() => window.setTimeout(print, 100));
   return true;
 }

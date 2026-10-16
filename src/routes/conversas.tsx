@@ -15,6 +15,8 @@ export const Route = createFileRoute("/conversas")({
   head: () => ({
     meta: [
       { title: "Conversas · RestauranteAI" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Inbox em tempo real das conversas do WhatsApp entre clientes e o agente de IA." },
       { property: "og:title", content: "Conversas · RestauranteAI" },
       { property: "og:description", content: "Acompanhe, assuma e responda conversas do WhatsApp do seu restaurante." },

@@ -15,6 +15,8 @@ export const Route = createFileRoute("/cardapio")({
   head: () => ({
     meta: [
       { title: "Cardápio e agente · RestauranteAI" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Gerencie os pratos que a IA lê e ajuste as instruções de personalização do agente." },
       { property: "og:title", content: "Cardápio e agente · RestauranteAI" },
       { property: "og:description", content: "Pratos, preços, disponibilidade e instruções do agente de IA." },

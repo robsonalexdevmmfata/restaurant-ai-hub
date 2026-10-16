@@ -12,6 +12,10 @@ export const Route = createFileRoute("/conexao")({
   head: () => ({
     meta: [
       { title: "Conexão WhatsApp e IA · RestauranteAI" },
+      { property: "og:title", content: "Conexão WhatsApp e IA · RestauranteAI" },
+      { property: "og:description", content: "Configure o atendimento do WhatsApp com Evolution API e Grok." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content: "Configure o atendimento do WhatsApp com Evolution API e Grok.",

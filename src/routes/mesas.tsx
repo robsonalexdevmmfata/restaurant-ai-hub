@@ -135,6 +135,7 @@ function TablesView() {
   }
 
   function tableMenuUrl(tableId: number) {
+    if (!tenant) return "";
     const tableLabel = `Mesa ${tableId}`;
     const appUrl = import.meta.env['VITE_PUBLIC_APP_URL']?.replace(/\/$/, "") ||
       (typeof window === "undefined" ? "" : window.location.origin);

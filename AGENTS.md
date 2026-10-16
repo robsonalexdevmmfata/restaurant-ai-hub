@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Keep public-menu promotion and coupon carousels in a shared browser-safe component using Embla, so touch and arrow navigation share one implementation.
+- Thermal receipt preview and printing use the same HTML renderer; browser-local per-restaurant printer preferences and monochrome logo conversion remain separate from store branding so printing never changes the public logo.
