@@ -12,6 +12,8 @@ export const Route = createFileRoute("/usuarios")({
   head: () => ({
     meta: [
       { title: "Equipe e permissões — RestauranteAI" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Gerencie usuários e permissões do restaurante." },
       { property: "og:title", content: "Equipe e permissões — RestauranteAI" },
       { property: "og:description", content: "Gerencie usuários e permissões do restaurante." },
