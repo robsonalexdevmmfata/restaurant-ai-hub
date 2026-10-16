@@ -1,7 +1,7 @@
 # Current work
-- [ ] Add thermal-printer settings, monochrome logo and live receipt preview; verify saving and printing.
+- [x] Add thermal-printer settings, monochrome logo and live receipt preview; verify saving and print window in the owner demo account.
 - [ ] Give the public menu a store profile, cover/logo and separate promotion/coupon carousels.
-- [ ] Restore the preview by resolving existing conflicts and errors.
+- [x] Restore the preview by resolving existing conflicts and errors.
 - [ ] Add shared profile/photo and logout controls for every dashboard.
 - [ ] Improve public menu presentation, shopping and correct restaurant links.
 - [ ] Expand owner customization and existing SaaS administration controls.
