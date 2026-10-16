@@ -164,8 +164,8 @@ export function MenuHighlights({ slug, promotions }: { slug: string; promotions:
             <article className="relative isolate flex aspect-[16/8] min-h-56 flex-col justify-end overflow-hidden rounded-3xl border border-black/5 bg-stone-900 p-6 shadow-md sm:min-h-72 sm:p-10">
               <FoodSlideImage
                 imageUrl={promotion?.imageUrl ?? null}
-                fallback={FOOD_IMAGES[index]}
-                alt={promotion?.title || "Prato japonês em destaque"}
+                fallback={FOOD_IMAGES[index] || ""}
+                alt={promotion?.title ?? "Prato japonês em destaque"}
               />
               <div className="absolute inset-0 -z-0 bg-gradient-to-r from-black/80 via-black/35 to-black/5" />
               <div className="relative z-10 max-w-xl text-white">
@@ -199,7 +199,7 @@ export function MenuHighlights({ slug, promotions }: { slug: string; promotions:
             <article className="relative isolate flex aspect-[16/8] min-h-56 flex-col justify-center overflow-hidden rounded-3xl border border-black/5 bg-stone-900 p-6 shadow-md sm:min-h-72 sm:p-10">
               <FoodSlideImage
                 imageUrl={null}
-                fallback={FOOD_IMAGES[index]}
+                fallback={FOOD_IMAGES[index] || ""}
                 alt="Comida japonesa preparada na hora"
               />
               <div className="absolute inset-0 -z-0 bg-gradient-to-r from-rose-950/85 via-rose-900/55 to-black/10" />

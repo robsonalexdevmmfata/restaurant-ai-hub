@@ -17,7 +17,7 @@ const plans: {
 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (search: Record<string, unknown>) => ({
-    plan: typeof search.plan === "string" ? search.plan : undefined,
+    plan: typeof search["plan"] === "string" ? search["plan"] : undefined,
   }),
   head: () => ({
     meta: [
